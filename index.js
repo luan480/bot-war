@@ -1,13 +1,6 @@
-/* ========================================================================
-   ARQUIVO index.js (VERSÃO FINAL PARA RODAR NO PC E DISCLOUD)
-   ======================================================================== */
-
-//
-// ⬇️ ESTA É A LINHA QUE FALTAVA ⬇️
-//
-require('dotenv').config(); // Esta linha LÊ o seu .env e o torna disponível
-
-// O resto do seu código
+/* index.js (ATUALIZADO COM ROTEADOR DE BOTÕES MELHORADO) */
+   
+require('dotenv').config(); // Para rodar local
 const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
@@ -35,8 +28,8 @@ for (const folder of commandFolders) {
     for (const file of commandFiles) {
         const filePath = path.join(folderPath, file);
         try {
-            if (file === 'promotionHandler.js') {
-                console.log(`[INFO] Módulo de promoção (vigia) encontrado.`);
+            // Ignora os 'handlers'
+            if (file === 'promotionHandler.js' || file === 'carreiraButtonHandler.js') {
                 continue; 
             }
             const command = require(filePath);
@@ -49,11 +42,16 @@ for (const folder of commandFolders) {
     }
 }
 
+// --- Carregadores de Módulos (Vigias e Handlers) ---
+const ligaButtonHandler = require('./commands/liga/buttons.js');
+const carreiraButtonHandler = require('./commands/adm/carreiraButtonHandler.js');
+const promotionVigia = require('./commands/adm/promotionHandler.js');
+
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
     try {
-        require('./commands/adm/promotionHandler.js')(client);
+        promotionVigia(client); // Ativa o vigia de prints
         console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Promoção:", err);
@@ -62,7 +60,8 @@ client.once(Events.ClientReady, async c => {
 
 // --- Evento de Interação ---
 client.on(Events.InteractionCreate, async interaction => {
-    // Roteador de Comandos
+
+    // --- Roteador de Comandos ---
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -78,18 +77,37 @@ client.on(Events.InteractionCreate, async interaction => {
             }
         }
     }
-    // Roteador de Botões
+
+    // --- [NOVO] Roteador de Botões ---
     if (interaction.isButton()) {
-        const buttons = require('./commands/liga/buttons');
-        try { 
-            await buttons(client, interaction); 
-        } catch (err) { 
-            console.error('Erro no handler de botões:', err); 
+        try {
+            // Botões da Liga
+            if (interaction.customId.startsWith('iniciar_') || 
+                interaction.customId.startsWith('ver_') || 
+                interaction.customId.startsWith('edit_') ||
+                interaction.customId.startsWith('confirmar_') ||
+                interaction.customId.startsWith('cancelar_')) 
+            {
+                await ligaButtonHandler(client, interaction);
+            }
+            
+            // [NOVO] Botões da Carreira (agora verifica o início do ID)
+            else if (interaction.customId.startsWith('carreira_status_')) 
+            {
+                await carreiraButtonHandler(interaction);
+            }
+            
+        } catch (err) {
+            console.error(`Erro no handler de botão (${interaction.customId}):`, err);
+            // Evita o crash de 'interaction already replied'
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: '❌ Ocorreu um erro ao usar este botão.', ephemeral: true });
+            } else {
+                await interaction.followUp({ content: '❌ Ocorreu um erro ao usar este botão.', ephemeral: true });
+            }
         }
     }
 });
 
 // --- Login do Bot ---
-// Esta linha agora vai funcionar no seu PC, pois a Linha 6
-// carregou o 'process.env.TOKEN' do seu arquivo .env
 client.login(process.env.TOKEN);
