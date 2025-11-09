@@ -1,0 +1,12 @@
+{
+  "name": "botliga",
+  "version": "1.0.0",
+  "description": "Bot de Liga - painel, contabilizacao e ranking",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.0"
+  }
+}
