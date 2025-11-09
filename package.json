@@ -1,8 +1,10 @@
 {
   "name": "botliga",
   "version": "1.0.0",
-  "description": "Bot de Liga - painel, contabilizacao e ranking",
   "main": "index.js",
+  "scripts": {
+    "start": "node deploy-commands.js && node index.js"
+  },
   "engines": {
     "node": ">=18"
   },
