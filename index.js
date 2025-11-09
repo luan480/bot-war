@@ -1,9 +1,16 @@
-/* index.js ATUALIZADO PARA DISCLOUD */
+/* ========================================================================
+   ARQUIVO index.js (VERSÃO FINAL PARA RODAR NO PC E DISCLOUD)
+   ======================================================================== */
 
+//
+// ⬇️ ESTA É A LINHA QUE FALTAVA ⬇️
+//
+require('dotenv').config(); // Esta linha LÊ o seu .env e o torna disponível
+
+// O resto do seu código
 const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-// const config = require('./config.json'); // NÃO PRECISAMOS MAIS DESTA LINHA
 
 const client = new Client({
     intents: [
@@ -14,7 +21,7 @@ const client = new Client({
     ],
 });
 
-// --- Carregador de Comandos (sem mudanças) ---
+// --- Carregador de Comandos ---
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(commandsPath).filter(folder => 
@@ -53,8 +60,9 @@ client.once(Events.ClientReady, async c => {
     }
 });
 
-// --- Evento de Interação (sem mudanças) ---
+// --- Evento de Interação ---
 client.on(Events.InteractionCreate, async interaction => {
+    // Roteador de Comandos
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -70,6 +78,7 @@ client.on(Events.InteractionCreate, async interaction => {
             }
         }
     }
+    // Roteador de Botões
     if (interaction.isButton()) {
         const buttons = require('./commands/liga/buttons');
         try { 
@@ -81,5 +90,6 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 // --- Login do Bot ---
-// MUDANÇA PRINCIPAL: Lendo o Token das "Secrets" do DisCloud
+// Esta linha agora vai funcionar no seu PC, pois a Linha 6
+// carregou o 'process.env.TOKEN' do seu arquivo .env
 client.login(process.env.TOKEN);

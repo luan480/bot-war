@@ -1,0 +1,10 @@
+# Ignora o arquivo de segredos
+.env
+
+# Ignora a pasta de pacotes (o DisCloud instala a dele)
+node_modules/
+
+# Ignora os logs de NPM
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
