@@ -1,16 +1,13 @@
-/* handleIniciar.js ATUALIZADO PARA DISCLOUD */
+/* commands/liga/handlers/handleIniciar.js (ATUALIZADO COM TIMER) */
 
 const fs = require('fs');
 const path = require('path');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-// const config = require('../../../config.json'); // NÃO PRECISAMOS MAIS
+// const config = require('../../../config.json'); // Usamos process.env
 const { safeReadJson, safeWriteJson, capitalize } = require('../utils/helpers.js');
 
-// (A função 'runQuestionProcess' não muda, então vou omiti-la... 
-// apenas substitua o arquivo todo)
-
+// (Esta função não muda)
 async function runQuestionProcess(interaction) {
-    // ... (COLE A SUA FUNÇÃO 'runQuestionProcess' EXATAMENTE COMO ESTÁ)
     const perguntasPath = path.join(__dirname, '..', 'perguntas.json');
     const perguntas = JSON.parse(fs.readFileSync(perguntasPath));
     const respostas = [];
@@ -66,6 +63,7 @@ async function runQuestionProcess(interaction) {
     return { pontosDaPartida, respostas };
 }
 
+// (O módulo principal)
 module.exports = async (client, interaction, pontuacaoPath, partidasPath) => {
     try {
         await interaction.deferUpdate();
@@ -127,11 +125,27 @@ module.exports = async (client, interaction, pontuacaoPath, partidasPath) => {
                     pontos: pontosDaPartida
                 };
                 safeWriteJson(partidasPath, partidas);
+                
+                // Apaga a msg "Iniciando contabilização"
                 setTimeout(() => {
                     initialMessage.delete().catch(() => {});
                 }, 15000); 
 
-                // MUDANÇA: Lendo a "Secret" do DisCloud
+                /* ==================================================================
+                   [NOVO] TIMER DE 10 MINUTOS PARA APAGAR O RESUMO
+                   ================================================================== */
+                setTimeout(() => {
+                    // Tenta apagar a mensagem de resumo
+                    summaryMessage.delete().catch(err => {
+                        // Se der erro (ex: msg já foi revertida/apagada), só avisa no console
+                        console.warn(`[AVISO] Não foi possível apagar a msg de resumo ${summaryMessage.id}. Talvez já tenha sido revertida.`, err);
+                    });
+                }, 600000); // 10 minutos = 600.000 milissegundos
+                /* ==================================================================
+                   FIM DA MUDANÇA
+                   ================================================================== */
+
+                // Envia o Print para o Canal de Logs
                 const canalPrintsId = process.env.CANAL_PRINTS_ID;
                 if (canalPrintsId && canalPrintsId !== interaction.channel.id) {
                     const canalPrints = await client.channels.fetch(canalPrintsId).catch(() => null);
