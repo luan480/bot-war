@@ -1,17 +1,28 @@
-/* deploy-commands.js ATUALIZADO PARA DISCLOUD */
+/* ========================================================================
+   ARQUIVO deploy-commands.js (COM CORREÇÃO DO dotenv)
+   
+   - Adicionada a linha 'require('dotenv').config()' no topo
+     para que ele possa ler seu arquivo .env local.
+   ======================================================================== */
 
+//
+// ⬇️ ESTA É A LINHA QUE FALTAVA ⬇️
+//
+require('dotenv').config(); // Esta linha LÊ o seu .env e o torna disponível
+
+// O resto do seu código
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-// const config = require('./config.json'); // NÃO PRECISAMOS MAIS
 
-// MUDANÇA: Lendo as variáveis direto do DisCloud
+// MUDANÇA: Lendo as variáveis (agora carregadas pelo dotenv)
 const clientId = process.env.CLIENT_ID;
 const guildId = process.env.GUILD_ID;
 const token = process.env.TOKEN;
 
 if (!clientId || !guildId || !token) {
     console.error('ERRO: Variáveis de ambiente (TOKEN, CLIENT_ID, GUILD_ID) não encontradas!');
+    console.log('Verifique se o seu arquivo .env está correto e na pasta principal.');
     process.exit(1); 
 }
 
@@ -29,7 +40,9 @@ for (const folder of commandFolders) {
     for (const file of commandFiles) {
         const filePath = path.join(folderPath, file);
         try {
-            if (file === 'promotionHandler.js') continue; 
+            // Ignora os handlers
+            if (file === 'promotionHandler.js' || file === 'carreiraButtonHandler.js') continue; 
+            
             const command = require(filePath);
             if (command.data && command.data.toJSON && command.execute) {
                 commands.push(command.data.toJSON());
@@ -49,7 +62,6 @@ const rest = new REST({ version: '10' }).setToken(token);
     try {
         console.log(`\n[INFO] Iniciando a atualização de ${commands.length} comandos (/) no servidor: ${guildId}`);
         
-        // Registrando no servidor específico
         const data = await rest.put(
             Routes.applicationGuildCommands(clientId, guildId),
             { body: commands },
