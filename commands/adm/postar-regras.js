@@ -1,8 +1,10 @@
 /* ========================================================================
-   NOVO COMANDO: /postar-regras
+   COMANDO /postar-regras (ATUALIZADO)
    
-   - Posta os embeds formatados das regras da Liga
-     no canal especificado.
+   - Embed 1 (Regras) mantido.
+   - Embed 2 (Punições) REMOVIDO.
+   - [NOVO] Adicionado Embed 2 (Tutorial do Bot), que lê
+     automaticamente o arquivo 'perguntas.json'.
    ======================================================================== */
 
 const { 
@@ -11,17 +13,20 @@ const {
     EmbedBuilder, 
     ChannelType 
 } = require('discord.js');
+// [NOVO] Precisamos do 'fs' e 'path' para ler o arquivo de perguntas
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
-    // 1. Definição do Comando
+    // 1. Definição do Comando (sem mudanças)
     data: new SlashCommandBuilder()
         .setName('postar-regras')
-        .setDescription('Envia os embeds de regras da Liga para um canal.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) // Só admins podem usar
+        .setDescription('Envia os embeds de regras e tutorial da Liga para um canal.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addChannelOption(option =>
             option.setName('canal')
                 .setDescription('O canal onde as regras serão enviadas.')
-                .addChannelTypes(ChannelType.GuildText) // Só aceita canais de texto
+                .addChannelTypes(ChannelType.GuildText)
                 .setRequired(true)
         ),
     
@@ -29,13 +34,11 @@ module.exports = {
     async execute(interaction) {
         
         const canal = interaction.options.getChannel('canal');
-
-        // Responde ao admin (só ele vê)
         await interaction.deferReply({ ephemeral: true });
 
-        // --- EMBED 1: REGRAS ---
+        // --- EMBED 1: REGRAS (Sem mudanças) ---
         const embedRegras = new EmbedBuilder()
-            .setColor('#9B59B6') // Roxo (cor da sua liga)
+            .setColor('#9B59B6') // Roxo
             .setTitle('🌎 Regras da Liga WorldWarBR 🌎')
             .setDescription('Nossas regras foram elaboradas para uma experiência de jogo madura e desafiadora.')
             .addFields(
@@ -66,47 +69,58 @@ module.exports = {
                 }
             );
 
-        // --- EMBED 2: PUNIÇÕES ---
-        const embedPunicoes = new EmbedBuilder()
-            .setColor('#E74C3C') // Vermelho para punições
-            .setTitle('🚫 Tabela de Punição da Liga 🚫')
-            .setDescription(
-                '• **Suspensão:** Partidas jogadas não serão contabilizadas.\n' +
-                '• **Castigo:** O jogador não pode usar os canais de voz (call).'
-            )
+        // --- [NOVO] EMBED 2: TUTORIAL DO BOT ---
+        
+        // 1. Carregar o 'perguntas.json'
+        const perguntasPath = path.join(__dirname, '..', 'liga', 'perguntas.json');
+        let perguntas = [];
+        try {
+            // Lê o arquivo de perguntas que está na pasta 'liga'
+            perguntas = JSON.parse(fs.readFileSync(perguntasPath, 'utf8'));
+        } catch (err) {
+            console.error("Erro ao carregar perguntas.json:", err);
+            return interaction.editReply({ content: '❌ Erro! Não consegui encontrar o arquivo `perguntas.json` para criar o tutorial.' });
+        }
+
+        // 2. Formatar as perguntas e pontos
+        const perguntasTexto = perguntas.map(p => {
+            if (p.type === 'combate') {
+                return `• **${p.pergunta}**\n  *(${p.pontosGanhos} pts por abate / ${p.pontosPerdidos} pts por morte)*`;
+            } else {
+                return `• **${p.pergunta}**\n  *(${p.pontos > 0 ? '+' : ''}${p.pontos} pts${p.multi ? ' por jogador' : ''})*`;
+            }
+        }).join('\n\n'); // Adiciona uma linha em branco entre cada pergunta
+
+        // 3. Construir o Embed do Tutorial
+        const embedTutorial = new EmbedBuilder()
+            .setColor('#3498DB') // Azul (cor de informação)
+            .setTitle('🤖 Como Usar o Bot da Liga 🤖')
             .addFields(
                 {
-                    name: 'Tabela de Infrações',
+                    name: 'Como Registrar uma Partida',
                     value: (
-                        '| Infração | Punição (Pontos) | Punição (Tempo/Status) |\n' +
-                        '| :--- | :--- | :--- |\n' +
-                        '| **Uso de Cheats** | - | **Expulsão da Liga** |\n' +
-                        '| **Exploração de Bugs** | -200P | 2 semanas de suspensão |\n' +
-                        '| **Troca de Cartas** | -30P | 1 dia de castigo |\n' +
-                        '| **Ataque Combinado** | -30P | 3 dias de suspensão |\n' +
-                        '| **Aliança** | -30P | 3 dias de suspensão |\n' +
-                        '| **Efeito Kamikaze** | -25P | 1 dia de castigo |\n' +
-                        '| **Retirada de Tropas** | -20P | 1 dia de castigo |\n' +
-                        '| **Perseguição** | -20P | 1 dia de suspensão |\n' +
-                        '| **Entregar um Abate** | -10P | - |'
+                        '1. Vá ao canal <#1429504377395351854> (o canal do painel da liga).\n' +
+                        '2. Clique no botão verde "▶️ Iniciar".\n' +
+                        '3. O bot pedirá um print da tela de vitória. Envie a imagem no chat.\n' +
+                        '4. O bot fará as perguntas abaixo, uma de cada vez. Responda-as no chat.'
                     )
                 },
                 {
-                    name: '⚠️ Observações',
-                    value: (
-                        '• Punições podem variar conforme a gravidade e reincidência.\n' +
-                        '• Decisões são tomadas pelo comitê disciplinar da liga.'
-                    )
+                    name: 'Perguntas e Pontuação',
+                    value: perguntasTexto // O texto que acabamos de formatar
                 }
-            );
+            )
+            .setFooter({ text: 'Ao final, o bot postará um resumo. Se errar, use o botão "Reverter" em até 10 minutos.' });
+            
+        // --- FIM DO NOVO EMBED ---
 
         try {
-            // Envia os dois embeds no canal que o admin escolheu
-            await canal.send({ embeds: [embedRegras, embedPunicoes] });
+            // Envia os dois embeds (Regras e Tutorial)
+            await canal.send({ embeds: [embedRegras, embedTutorial] });
             
             // Avisa o admin que deu certo
             await interaction.editReply({
-                content: `✅ Embeds de regras enviados com sucesso para o canal ${canal}!`,
+                content: `✅ Embeds de regras e tutorial enviados com sucesso para o canal ${canal}!`,
                 ephemeral: true
             });
         } catch (err) {
