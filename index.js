@@ -1,4 +1,4 @@
-/* index.js (ATUALIZADO COM ROTEADOR DE BOTÕES MELHORADO) */
+/* index.js (ATUALIZADO PARA LER /commands/ticket/) */
    
 require('dotenv').config(); // Para rodar local
 const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
@@ -17,6 +17,7 @@ const client = new Client({
 // --- Carregador de Comandos ---
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
+// O 'commandFolders' vai achar 'adm', 'liga', e a nova 'ticket'
 const commandFolders = fs.readdirSync(commandsPath).filter(folder => 
     fs.statSync(path.join(commandsPath, folder)).isDirectory()
 );
@@ -28,8 +29,9 @@ for (const folder of commandFolders) {
     for (const file of commandFiles) {
         const filePath = path.join(folderPath, file);
         try {
-            // Ignora os 'handlers'
-            if (file === 'promotionHandler.js' || file === 'carreiraButtonHandler.js') {
+            // Ignora todos os 'handlers' de todas as pastas
+            if (file.endsWith('Handler.js')) {
+                console.log(`[INFO] Módulo handler encontrado: ${file}`);
                 continue; 
             }
             const command = require(filePath);
@@ -46,12 +48,14 @@ for (const folder of commandFolders) {
 const ligaButtonHandler = require('./commands/liga/buttons.js');
 const carreiraButtonHandler = require('./commands/adm/carreiraButtonHandler.js');
 const promotionVigia = require('./commands/adm/promotionHandler.js');
+// [MUDANÇA AQUI] O caminho para o handler mudou
+const ticketOpenHandler = require('./commands/ticket/ticketOpenHandler.js');
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
     try {
-        promotionVigia(client); // Ativa o vigia de prints
+        promotionVigia(client);
         console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Promoção:", err);
@@ -78,7 +82,7 @@ client.on(Events.InteractionCreate, async interaction => {
         }
     }
 
-    // --- [NOVO] Roteador de Botões ---
+    // --- Roteador de Botões ---
     if (interaction.isButton()) {
         try {
             // Botões da Liga
@@ -91,15 +95,20 @@ client.on(Events.InteractionCreate, async interaction => {
                 await ligaButtonHandler(client, interaction);
             }
             
-            // [NOVO] Botões da Carreira (agora verifica o início do ID)
+            // Botões da Carreira
             else if (interaction.customId.startsWith('carreira_status_')) 
             {
                 await carreiraButtonHandler(interaction);
             }
             
+            // Botões de Ticket (sem mudança aqui, o ID do botão é o mesmo)
+            else if (interaction.customId === 'ticket_abrir_denuncia') 
+            {
+                await ticketOpenHandler(interaction);
+            }
+            
         } catch (err) {
             console.error(`Erro no handler de botão (${interaction.customId}):`, err);
-            // Evita o crash de 'interaction already replied'
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({ content: '❌ Ocorreu um erro ao usar este botão.', ephemeral: true });
             } else {
