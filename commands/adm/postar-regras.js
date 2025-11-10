@@ -47,11 +47,11 @@ module.exports = {
                     value: (
                         '• **Duração:** Máximo de 1 hora. \n' +
                         '  *(Obs: A partida só termina após a jogada do último jogador, mesmo se o tempo estourar)*\n' +
-                        '• **Jogadores:** Mínimo de 5 participantes.\n' +
+                        '• **Jogadores:** Mínimo de 6 participantes.\n' +
                         '• **Inscrição:** Todos devem ser membros do WorldWarBR.\n' +
-                        '• **Limite:** Máximo de 50 partidas por jogador/mês.\n' +
-                        '• **1ª Rodada (ONU):** Uso da ONU é obrigatório.\n' +
+                        '• **Limite:** Máximo de 3 partidas por dia.\n' +
                         '• **1ª Rodada (Tropas):** Proibido alocar todas as tropas no mesmo continente.'
+                        
                     )
                 },
                 {
@@ -63,7 +63,6 @@ module.exports = {
                         '• **Retirada de Tropas:** Falsa trégua para atacar outro local.\n' +
                         '• **Perseguição:** Focar um jogador por motivos pessoais.\n' +
                         '• **Efeito Kamikaze:** Sacrificar tropas sem lógica para alterar o jogo.\n' +
-                        '• **Aliança / Ataque Combinado:** Planejar ataques em conjunto ou se ajudar.\n' +
                         '• **Entregar Abate:** Facilitar sua eliminação ou a de outro jogador.'
                     )
                 }
