@@ -1,9 +1,9 @@
-/* commands/ticket/ticketOpenHandler.js */
+/* commands/ticket/ticketOpenHandler.js (CORRIGIDO) */
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField } = require('discord.js');
-const path = path = require('path');
-// O caminho para o helpers.js ainda está correto
-// ../ (sai da 'ticket') -> liga/ -> utils/ -> helpers.js
+// [CORREÇÃO AQUI] Corrigido o erro de digitação
+const path = require('path'); 
+// O caminho para o helpers.js
 const { safeReadJson } = require('../liga/utils/helpers.js');
 
 // IDs da Staff (do seu server_data.json)
