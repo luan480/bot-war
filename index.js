@@ -1,4 +1,4 @@
-/* index.js (ATUALIZADO COM NOVOS INTENTS) */
+/* index.js (ATUALIZADO PARA INICIAR O VIGIA DE BOAS-VINDAS) */
    
 require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
@@ -11,8 +11,8 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildBans, // [NOVO] Para ver bans
-        GatewayIntentBits.GuildVoiceStates // [NOVO] Para ver canais de voz
+        GatewayIntentBits.GuildBans, 
+        GatewayIntentBits.GuildVoiceStates
     ],
 });
 
@@ -48,11 +48,14 @@ const carreiraButtonHandler = require('./commands/adm/carreiraButtonHandler.js')
 const promotionVigia = require('./commands/adm/promotionHandler.js');
 const ticketOpenHandler = require('./commands/ticket/ticketOpenHandler.js');
 const ticketCloseHandler = require('./commands/ticket/ticketCloseHandler.js');
-const logHandler = require('./commands/adm/logHandler.js'); 
+const logHandler = require('./commands/adm/logHandler.js');
+const welcomeHandler = require('./commands/adm/welcomeHandler.js'); // [NOVO]
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
+    
+    // Ativa o Vigia de Promoção
     try {
         promotionVigia(client); 
         console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
@@ -60,17 +63,27 @@ client.once(Events.ClientReady, async c => {
         console.error("❌ Falha ao ativar o Sistema de Promoção:", err);
     }
     
+    // Ativa o Vigia de Logs
     try {
         logHandler(client); 
-        console.log("✅ Sistema de Logs (Poderoso) ativado."); // Mensagem atualizada
+        console.log("✅ Sistema de Logs (Poderoso) ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Logs:", err);
+    }
+
+    // [NOVO] Ativa o Vigia de Boas-Vindas
+    try {
+        welcomeHandler(client); 
+        console.log("✅ Sistema de Boas-Vindas ativado.");
+    } catch (err) {
+        console.error("❌ Falha ao ativar o Sistema de Boas-Vindas:", err);
     }
 });
 
 // --- Evento de Interação ---
 client.on(Events.InteractionCreate, async interaction => {
     // (O seu roteador de comandos e botões continua o mesmo)
+    // ... (código dos roteadores) ...
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -127,4 +140,5 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
+// --- Login do Bot ---
 client.login(process.env.TOKEN);
