@@ -1,4 +1,4 @@
-/* index.js (ATUALIZADO PARA FECHAR TICKETS) */
+/* index.js (ATUALIZADO COM NOVOS INTENTS) */
    
 require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
@@ -10,7 +10,9 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers 
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildBans, // [NOVO] Para ver bans
+        GatewayIntentBits.GuildVoiceStates // [NOVO] Para ver canais de voz
     ],
 });
 
@@ -45,7 +47,8 @@ const ligaButtonHandler = require('./commands/liga/buttons.js');
 const carreiraButtonHandler = require('./commands/adm/carreiraButtonHandler.js');
 const promotionVigia = require('./commands/adm/promotionHandler.js');
 const ticketOpenHandler = require('./commands/ticket/ticketOpenHandler.js');
-const ticketCloseHandler = require('./commands/ticket/ticketCloseHandler.js'); // [NOVO]
+const ticketCloseHandler = require('./commands/ticket/ticketCloseHandler.js');
+const logHandler = require('./commands/adm/logHandler.js'); 
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
@@ -56,11 +59,18 @@ client.once(Events.ClientReady, async c => {
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Promoção:", err);
     }
+    
+    try {
+        logHandler(client); 
+        console.log("✅ Sistema de Logs (Poderoso) ativado."); // Mensagem atualizada
+    } catch (err) {
+        console.error("❌ Falha ao ativar o Sistema de Logs:", err);
+    }
 });
 
 // --- Evento de Interação ---
 client.on(Events.InteractionCreate, async interaction => {
-    // --- Roteador de Comandos ---
+    // (O seu roteador de comandos e botões continua o mesmo)
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -80,11 +90,8 @@ client.on(Events.InteractionCreate, async interaction => {
             }
         }
     }
-
-    // --- Roteador de Botões ---
     if (interaction.isButton()) {
         try {
-            // Botões da Liga
             if (interaction.customId.startsWith('iniciar_') || 
                 interaction.customId.startsWith('ver_') || 
                 interaction.customId.startsWith('edit_') ||
@@ -93,24 +100,18 @@ client.on(Events.InteractionCreate, async interaction => {
             {
                 await ligaButtonHandler(client, interaction);
             }
-            
-            // Botões da Carreira
             else if (interaction.customId.startsWith('carreira_status_')) 
             {
                 await carreiraButtonHandler(interaction);
             }
-            
-            // Botões de Ticket
             else if (interaction.customId === 'ticket_abrir_denuncia') 
             {
                 await ticketOpenHandler(interaction);
             }
-            // [NOVO] Lógica do botão de fechar
             else if (interaction.customId === 'ticket_fechar') 
             {
                 await ticketCloseHandler(interaction);
             }
-            
         } catch (err) {
             console.error(`Erro no handler de botão (${interaction.customId}):`, err);
             try {
@@ -126,5 +127,4 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-// --- Login do Bot ---
 client.login(process.env.TOKEN);
