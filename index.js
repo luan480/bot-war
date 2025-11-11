@@ -1,4 +1,4 @@
-/* index.js (ATUALIZADO COM TRATAMENTO DE ERRO SEGURO) */
+/* index.js (ATUALIZADO PARA FECHAR TICKETS) */
    
 require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
@@ -14,7 +14,7 @@ const client = new Client({
     ],
 });
 
-// --- Carregador de Comandos (sem mudanças) ---
+// --- Carregador de Comandos ---
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(commandsPath).filter(folder => 
@@ -39,16 +39,19 @@ for (const folder of commandFolders) {
         }
     }
 }
+
+// --- Carregadores de Módulos (Vigias e Handlers) ---
 const ligaButtonHandler = require('./commands/liga/buttons.js');
 const carreiraButtonHandler = require('./commands/adm/carreiraButtonHandler.js');
 const promotionVigia = require('./commands/adm/promotionHandler.js');
 const ticketOpenHandler = require('./commands/ticket/ticketOpenHandler.js');
+const ticketCloseHandler = require('./commands/ticket/ticketCloseHandler.js'); // [NOVO]
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
     try {
-        promotionVigia(client);
+        promotionVigia(client); 
         console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Promoção:", err);
@@ -57,37 +60,31 @@ client.once(Events.ClientReady, async c => {
 
 // --- Evento de Interação ---
 client.on(Events.InteractionCreate, async interaction => {
-
     // --- Roteador de Comandos ---
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
-
         try {
             await command.execute(interaction);
         } catch (err) {
             console.error(`[ERRO NO COMANDO /${interaction.commandName}]`, err);
-            
-            // --- [BLOCO DE CATCH ATUALIZADO] ---
-            // Agora, ele tenta responder ao erro, mas se a
-            // resposta ao erro também falhar, ele não vai quebrar o bot.
             try {
                 const errorMessage = `❌ **Erro Crítico!** Ocorreu um problema:\n\n\`\`\`${err.message}\`\`\``;
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: errorMessage, flags: 64 }); // 64 = Ephemeral
+                    await interaction.followUp({ content: errorMessage, flags: 64 });
                 } else {
-                    await interaction.reply({ content: errorMessage, flags: 64 }); // 64 = Ephemeral
+                    await interaction.reply({ content: errorMessage, flags: 64 });
                 }
             } catch (catchErr) {
                 console.error("[ERRO NO CATCH] Não foi possível responder à interação que falhou:", catchErr.message);
             }
-            // --- [FIM DA ATUALIZAÇÃO] ---
         }
     }
 
     // --- Roteador de Botões ---
     if (interaction.isButton()) {
         try {
+            // Botões da Liga
             if (interaction.customId.startsWith('iniciar_') || 
                 interaction.customId.startsWith('ver_') || 
                 interaction.customId.startsWith('edit_') ||
@@ -96,14 +93,24 @@ client.on(Events.InteractionCreate, async interaction => {
             {
                 await ligaButtonHandler(client, interaction);
             }
+            
+            // Botões da Carreira
             else if (interaction.customId.startsWith('carreira_status_')) 
             {
                 await carreiraButtonHandler(interaction);
             }
+            
+            // Botões de Ticket
             else if (interaction.customId === 'ticket_abrir_denuncia') 
             {
                 await ticketOpenHandler(interaction);
             }
+            // [NOVO] Lógica do botão de fechar
+            else if (interaction.customId === 'ticket_fechar') 
+            {
+                await ticketCloseHandler(interaction);
+            }
+            
         } catch (err) {
             console.error(`Erro no handler de botão (${interaction.customId}):`, err);
             try {
@@ -119,4 +126,5 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
+// --- Login do Bot ---
 client.login(process.env.TOKEN);

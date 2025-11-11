@@ -1,4 +1,4 @@
-/* commands/ticket/ticket-painel.js (CORRIGIDO) */
+/* commands/ticket/ticket-painel.js (IMAGEM CORRIGIDA) */
 
 const { 
     SlashCommandBuilder, 
@@ -8,7 +8,7 @@ const {
     ButtonBuilder, 
     ButtonStyle,
     ChannelType,
-    MessageFlags // [NOVO] Importa o 'MessageFlags'
+    MessageFlags
 } = require('discord.js');
 
 module.exports = {
@@ -25,15 +25,16 @@ module.exports = {
     
     async execute(interaction) {
         const canal = interaction.options.getChannel('canal');
-
-        // [MUDANÇA] Trocamos 'ephemeral: true' por 'flags: MessageFlags.Ephemeral'
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        
+        // Corrigido para não usar "ephemeral"
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }); 
 
         const embed = new EmbedBuilder()
             .setColor('#3498DB')
             .setTitle('Fazer uma denúncia ou tirar dúvidas')
             .setDescription('Avisou alguma traição ou tem dúvidas sobre o campo de batalha?\n\nClique no botão abaixo para abrir um chamado privado e relatar a denúncia ou tirar sua dúvida. Nossos comandantes irão investigar e garantir a ordem!')
-            .setImage('https://i.imgur.com/g8s9g9s.jpeg'); // Lembre-se que esta imagem está quebrada!
+            // [CORREÇÃO] Troquei por uma imagem que funciona
+            .setImage('https://i.imgur.com/K00ZtB8.png'); 
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -45,11 +46,8 @@ module.exports = {
 
         try {
             await canal.send({ embeds: [embed], components: [row] });
-            
-            // [MUDANÇA] Trocamos 'ephemeral: true' por 'flags'
             await interaction.editReply({
                 content: `✅ Painel de tickets enviado para o canal ${canal}!`
-                // Não precisa de 'flags' no 'editReply' de um 'deferReply' efêmero
             });
         } catch (err) {
             console.error(err);
