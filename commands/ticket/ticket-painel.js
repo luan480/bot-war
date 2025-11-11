@@ -1,8 +1,7 @@
 /* ========================================================================
    ARQUIVO: commands/ticket/ticket-painel.js
    
-   - Título e Descrição do Embed atualizados para um
-     tom mais profissional e temático (militar).
+   - Texto do botão corrigido de "Abrir Chamado" para "Abrir Ticket".
    ======================================================================== */
 
 const { 
@@ -35,12 +34,12 @@ module.exports = {
         
         await interaction.deferReply({ flags: MessageFlags.Ephemeral }); 
 
-        // --- [TEXTO ATUALIZADO AQUI] ---
+        // --- Construção do Embed ---
         const embed = new EmbedBuilder()
             .setColor('#3498DB') // Azul
-            .setTitle('Quartel-General: Central de Suporte') // TÍTULO NOVO
+            .setTitle('Quartel-General: Central de Suporte')
             .setDescription(
-                '**Presenciou uma infração ou precisa de suporte tático?**\n\n' + // DESCRIÇÃO NOVA
+                '**Presenciou uma infração ou precisa de suporte tático?**\n\n' +
                 'A comunicação é vital para a ordem no campo de batalha. Clique no botão abaixo para abrir um canal privado e direto com o Comando para:\n\n' +
                 '• Fazer denúncias (anti-jogo, traição)\n' +
                 '• Tirar dúvidas sobre estratégias ou regras\n' +
@@ -48,16 +47,19 @@ module.exports = {
             )
             .setImage('https://cdn.discordapp.com/attachments/1082774011676729365/1437909813899038860/ABS2GSlQGvPWahu9B-uTjqrQapfh1qrnWrBCjy1iZNN0WsAaLjOid6kZCzl_MiC-pZsbBwmP0nennpEP9A_wrqYaEQ5gp1cyT9zYzy1uaBZzhnzoGPFvcpBx4ItibdfpmoTWV0zxhPvidab19NbpAOMo6aS3all8zpkpbNXyIW-hlF3Q_YyUsAs1024-rj.png?ex=6914f55e&is=6913a3de&hm=70a1229da286ba5e23dbef227a143a53fcd1973ec34b75e6d8371d133d896a11&'); 
 
+        // --- [CORREÇÃO AQUI] ---
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('ticket_abrir_denuncia')
-                .setLabel('Abrir Chamado') // Texto do botão atualizado
+                .setLabel('Abrir Ticket') // Corrigido!
                 .setEmoji('📨')
                 .setStyle(ButtonStyle.Success)
         );
 
+        // --- Envio da Mensagem ---
         try {
             await canal.send({ embeds: [embed], components: [row] });
+            
             await interaction.editReply({
                 content: `✅ Painel de tickets enviado para o canal ${canal}!`
             });

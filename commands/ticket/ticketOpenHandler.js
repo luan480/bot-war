@@ -1,12 +1,9 @@
-/* commands/ticket/ticketOpenHandler.js (CORRIGIDO) */
+/* commands/ticket/ticketOpenHandler.js (ATUALIZADO) */
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField } = require('discord.js');
-// [CORREÇÃO AQUI] Corrigido o erro de digitação
-const path = require('path'); 
-// O caminho para o helpers.js
+const path = require('path');
 const { safeReadJson } = require('../liga/utils/helpers.js');
 
-// IDs da Staff (do seu server_data.json)
 const ID_CARGO_ADM = '865915891399786518';
 const ID_CARGO_MOD = '849697636574560296';
 
@@ -24,6 +21,8 @@ module.exports = async (interaction) => {
             name: channelName,
             type: ChannelType.GuildText,
             parent: categoriaSuporte,
+            // [NOVO] Salva o ID do usuário no Tópico do canal
+            topic: `Ticket aberto por ${member.user.tag} (ID: ${member.id})`, 
             permissionOverwrites: [
                 {
                     id: guild.roles.everyone,
@@ -38,18 +37,9 @@ module.exports = async (interaction) => {
                         PermissionsBitField.Flags.AttachFiles
                     ],
                 },
-                {
-                    id: ID_CARGO_ADM,
-                    allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
-                },
-                {
-                    id: ID_CARGO_MOD,
-                    allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
-                },
-                {
-                    id: interaction.client.user.id,
-                    allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
-                }
+                { id: ID_CARGO_ADM, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+                { id: ID_CARGO_MOD, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+                { id: interaction.client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
             ],
         });
 
