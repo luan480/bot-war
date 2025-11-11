@@ -1,4 +1,9 @@
-/* commands/ticket/ticket-painel.js (IMAGEM CORRIGIDA) */
+/* ========================================================================
+   ARQUIVO: commands/ticket/ticket-painel.js
+   
+   - Título e Descrição do Embed atualizados para um
+     tom mais profissional e temático (militar).
+   ======================================================================== */
 
 const { 
     SlashCommandBuilder, 
@@ -8,10 +13,11 @@ const {
     ButtonBuilder, 
     ButtonStyle,
     ChannelType,
-    MessageFlags
+    MessageFlags 
 } = require('discord.js');
 
 module.exports = {
+    // 1. Definição do Comando
     data: new SlashCommandBuilder()
         .setName('ticket-painel')
         .setDescription('Posta o painel de abertura de tickets.')
@@ -23,23 +29,29 @@ module.exports = {
                 .setRequired(true)
         ),
     
+    // 2. Lógica de Execução
     async execute(interaction) {
         const canal = interaction.options.getChannel('canal');
         
-        // Corrigido para não usar "ephemeral"
         await interaction.deferReply({ flags: MessageFlags.Ephemeral }); 
 
+        // --- [TEXTO ATUALIZADO AQUI] ---
         const embed = new EmbedBuilder()
-            .setColor('#3498DB')
-            .setTitle('Fazer uma denúncia ou tirar dúvidas')
-            .setDescription('Avisou alguma traição ou tem dúvidas sobre o campo de batalha?\n\nClique no botão abaixo para abrir um chamado privado e relatar a denúncia ou tirar sua dúvida. Nossos comandantes irão investigar e garantir a ordem!')
-            // [CORREÇÃO] Troquei por uma imagem que funciona
-            .setImage('https://i.imgur.com/K00ZtB8.png'); 
+            .setColor('#3498DB') // Azul
+            .setTitle('Quartel-General: Central de Suporte') // TÍTULO NOVO
+            .setDescription(
+                '**Presenciou uma infração ou precisa de suporte tático?**\n\n' + // DESCRIÇÃO NOVA
+                'A comunicação é vital para a ordem no campo de batalha. Clique no botão abaixo para abrir um canal privado e direto com o Comando para:\n\n' +
+                '• Fazer denúncias (anti-jogo, traição)\n' +
+                '• Tirar dúvidas sobre estratégias ou regras\n' +
+                '• Solicitar assistência da Staff'
+            )
+            .setImage('https://cdn.discordapp.com/attachments/1082774011676729365/1437909813899038860/ABS2GSlQGvPWahu9B-uTjqrQapfh1qrnWrBCjy1iZNN0WsAaLjOid6kZCzl_MiC-pZsbBwmP0nennpEP9A_wrqYaEQ5gp1cyT9zYzy1uaBZzhnzoGPFvcpBx4ItibdfpmoTWV0zxhPvidab19NbpAOMo6aS3all8zpkpbNXyIW-hlF3Q_YyUsAs1024-rj.png?ex=6914f55e&is=6913a3de&hm=70a1229da286ba5e23dbef227a143a53fcd1973ec34b75e6d8371d133d896a11&'); 
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('ticket_abrir_denuncia')
-                .setLabel('Abrir Ticket')
+                .setLabel('Abrir Chamado') // Texto do botão atualizado
                 .setEmoji('📨')
                 .setStyle(ButtonStyle.Success)
         );
