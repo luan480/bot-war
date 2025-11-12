@@ -1,11 +1,10 @@
-/* index.js (ATUALIZADO PARA CORRIGIR 'File is not defined') */
+/* index.js (CORRIGIDO) */
    
 require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
-// [NOVO] Adiciona a classe 'File' que está faltando para o 'undici'
-const { File } = require('node:buffer'); 
+// [REMOVIDO] A linha 'const { File } = require('node:buffer');' foi removida.
 
 const client = new Client({
     intents: [
@@ -154,3 +153,5 @@ client.on(Events.InteractionCreate, async interaction => {
 
 // --- Login do Bot ---
 client.login(process.env.TOKEN);
+
+// [REMOVIDO] A chave '}' extra foi removida daqui.
