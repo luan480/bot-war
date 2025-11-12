@@ -1,8 +1,11 @@
-/* index.js (ATUALIZADO PARA CORRIGIR 'File is not defined') */
+/* ========================================================================
+   ARQUIVO index.js (V6 - "PERFEITO" E LIMPO)
+   
+   - [MUDANÇA] Removida toda a lógica de status do 'ClientReady'.
+   - [MUDANÇA] Importado e ativado o 'statusHandler.js'.
+   ======================================================================== */
    
 require('dotenv').config(); 
-// [NOVO] Adiciona a classe 'File' que está faltando para o 'undici'
-const { File } = require('undici'); 
 const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
@@ -31,7 +34,8 @@ for (const folder of commandFolders) {
     for (const file of commandFiles) {
         const filePath = path.join(folderPath, file);
         try {
-            if (file.endsWith('Handler.js')) {
+            // [ATUALIZADO] Agora ignora o statusHandler também
+            if (file.endsWith('Handler.js') || file.endsWith('handler.js')) {
                 console.log(`[INFO] Módulo handler encontrado: ${file}`);
                 continue; 
             }
@@ -53,39 +57,22 @@ const ticketOpenHandler = require('./commands/ticket/ticketOpenHandler.js');
 const ticketCloseHandler = require('./commands/ticket/ticketCloseHandler.js');
 const logHandler = require('./commands/adm/logHandler.js'); 
 const welcomeHandler = require('./commands/adm/welcomeHandler.js');
-const autoResponderHandler = require('./commands/adm/autoResponderHandler.js'); 
+const autoResponderHandler = require('./commands/adm/autoResponderHandler.js');
+const statusHandler = require('./commands/adm/statusHandler.js'); // [NOVO]
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
-    
-    // --- Sistema de Status Rotativo ---
-    const statusList = [
-        { name: '🎮 War', type: ActivityType.Playing }, { name: '🏆 a Liga das Nações', type: ActivityType.Competing },
-        { name: '📺 o campo de batalha', type: ActivityType.Watching }, { name: '🎵 hinos de guerra', type: ActivityType.Listening },
-        { name: '🧠 planos de ataque', type: ActivityType.Playing }, { name: '📈 as vitórias da Liga', type: ActivityType.Watching },
-        { name: '🛡️ as patentes dos soldados', type: ActivityType.Watching }, { name: '📝 as regras do QG', type: ActivityType.Playing },
-        { name: '👀 o canal 📸・prints', type: ActivityType.Watching }, { name: '📨 tickets de suporte', type: ActivityType.Watching },
-        { name: '🧐 o Registro de Auditoria', type: ActivityType.Watching }, { name: '👻 caçando Ghost Pings', type: ActivityType.Playing },
-        { name: '👋 os novos Recrutas', type: ActivityType.Watching }, { name: '🗺️ o mapa-múndi', type: ActivityType.Playing },
-        { name: '🎖️ polindo as medalhas', type: ActivityType.Playing }, { name: '💤 descansando no quartel', type: ActivityType.Playing },
-        { name: '☕ um café com o General', type: ActivityType.Playing }, { name: '🎯 um objetivo secreto', type: ActivityType.Competing },
-        { name: '🎲 os dados de combate', type: ActivityType.Playing }, { name: '🚁 a Aeronáutica', type: ActivityType.Watching },
-        { name: '⚓ a Marinha', type: ActivityType.Watching }, { name: '🔰 o Exército', type: ActivityType.Watching },
-        { name: '⚔️ os Mercenários', type: ActivityType.Watching }, { name: '📜 os guias de estratégia', type: ActivityType.Watching },
-        { name: '📣 um /anuncio', type: ActivityType.Playing }, { name: '🔨 banindo cheaters', type: ActivityType.Playing },
-        { name: '📁 organizando os logs', type: ActivityType.Watching }, { name: '🧑‍✈️ o Almirante', type: ActivityType.Listening },
-        { name: '💥 preparando o /nuke', type: ActivityType.Playing }, { name: '💂 Vigiando... sempre vigiando.', type: ActivityType.Watching }
-    ];
-    const updateStatus = () => {
-        const randomStatus = statusList[Math.floor(Math.random() * statusList.length)];
-        client.user.setActivity(randomStatus.name, { type: randomStatus.type });
-        console.log(`[Status] Status atualizado para: ${ActivityType[randomStatus.type]} ${randomStatus.name}`);
-    };
-    updateStatus();
-    setInterval(updateStatus, 3600000); // 1 hora
 
+    // [REMOVIDO] A lista de 30 frases e o setInterval foram movidos.
+    
     // --- Ativa os Vigias ---
+    try {
+        statusHandler(client); // [NOVO]
+        console.log("✅ Sistema de Status Rotativo ativado.");
+    } catch (err) {
+        console.error("❌ Falha ao ativar o Sistema de Status:", err);
+    }
     try {
         promotionVigia(client); 
         console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
