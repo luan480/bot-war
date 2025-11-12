@@ -1,12 +1,11 @@
 /* ========================================================================
-   HANDLER ATUALIZADO: commands/adm/logHandler.js (V3 - PODEROSO)
+   HANDLER ATUALIZADO: commands/adm/logHandler.js (V4 - COMPLETO)
    
-   - Adicionado Logs de Voz (Entrou, Saiu, Trocou).
-   - Adicionado Logs de Membro (Apelido, Cargos).
-   - [Requer Permissão de Ver Registro de Auditoria]
+   - [NOVO] Adicionado Logs de Canais (Criado, Deletado, Atualizado).
+   - [Necessário importar 'ChannelType' agora]
    ======================================================================== */
    
-const { Events, EmbedBuilder, AuditLogEvent } = require('discord.js');
+const { Events, EmbedBuilder, AuditLogEvent, ChannelType } = require('discord.js');
 const path = require('path');
 const { safeReadJson } = require('../liga/utils/helpers.js');
 
@@ -84,19 +83,11 @@ module.exports = (client) => {
         await logChannel.send({ embeds: [embed] });
     });
     client.on(Events.GuildMemberRemove, async (member) => {
-        // (Isso também é ativado em Kicks e Bans, vamos checar)
         const logChannel = await getLogChannel();
         if (!logChannel) return;
-
-        // Pega o Registro de Auditoria para ver se foi KICK ou BAN
-        const fetchedLogs = await member.guild.fetchAuditLogs({
-            limit: 1,
-            type: AuditLogEvent.MemberKick,
-        }).catch(() => null);
-
+        const fetchedLogs = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick }).catch(() => null);
         const kickLog = fetchedLogs?.entries.first();
         
-        // Se foi KICK (não ban)
         if (kickLog && kickLog.target.id === member.id && kickLog.createdAt > (Date.now() - 5000)) {
             const embed = new EmbedBuilder()
                 .setColor('DarkRed').setTitle('Membro Expulso (Kick)')
@@ -104,7 +95,6 @@ module.exports = (client) => {
                 .setThumbnail(member.user.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         } else {
-            // Se foi apenas "Saiu"
             const embed = new EmbedBuilder()
                 .setColor('Orange').setTitle('Membro Saiu')
                 .setDescription(`**Usuário:** ${member.user} (${member.user.tag})\n**ID:** ${member.id}`)
@@ -122,9 +112,7 @@ module.exports = (client) => {
         await logChannel.send({ embeds: [embed] });
     });
 
-    /* ============================================================
-       [NOVO] LOGS DE ATUALIZAÇÃO DE MEMBRO (CARGOS E APELIDOS)
-       ============================================================ */
+    // --- LOGS DE ATUALIZAÇÃO DE MEMBRO (CARGOS E APELIDOS) ---
     client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
@@ -142,7 +130,7 @@ module.exports = (client) => {
             await logChannel.send({ embeds: [embed] });
         }
 
-        // 2. MUDANÇA DE CARGOS (O mais complexo)
+        // 2. MUDANÇA DE CARGOS
         const oldRoles = oldMember.roles.cache;
         const newRoles = newMember.roles.cache;
 
@@ -150,48 +138,32 @@ module.exports = (client) => {
             const embed = new EmbedBuilder()
                 .setColor('Blue').setTitle('Cargos Atualizados')
                 .setDescription(`**Membro:** ${newMember.user} (${newMember.user.tag})`);
-
-            // Pega o Registro de Auditoria para ver QUEM mudou os cargos
-            const fetchedLogs = await newMember.guild.fetchAuditLogs({
-                limit: 1,
-                type: AuditLogEvent.MemberRoleUpdate,
-            }).catch(() => null);
-            
+            const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberRoleUpdate }).catch(() => null);
             const roleLog = fetchedLogs?.entries.first();
             
-            // Se achou o log e foi nos últimos 5 segundos...
             if (roleLog && roleLog.target.id === newMember.id && roleLog.createdAt > (Date.now() - 5000)) {
                 embed.addFields({ name: 'Alterado por', value: `${roleLog.executor}` });
             } else {
-                embed.addFields({ name: 'Alterado por', value: `*Não detectado (Provavelmente o próprio usuário ou um bot de cargo automático)*` });
+                embed.addFields({ name: 'Alterado por', value: `*Não detectado (Automático ou usuário)*` });
             }
-            
-            // Cargos Adicionados
             const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
             if (addedRoles.size > 0) {
                 embed.addFields({ name: 'Cargos Adicionados', value: addedRoles.map(r => r.name).join(', ') });
             }
-
-            // Cargos Removidos
             const removedRoles = oldRoles.filter(role => !newRoles.has(role.id));
             if (removedRoles.size > 0) {
                 embed.addFields({ name: 'Cargos Removidos', value: removedRoles.map(r => r.name).join(', ') });
             }
-            
             await logChannel.send({ embeds: [embed] });
         }
     });
 
-    /* ============================================================
-       [NOVO] LOGS DE CANAL DE VOZ
-       ============================================================ */
+    // --- LOGS DE CANAL DE VOZ ---
     client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
-        
         const user = newState.member.user;
         
-        // 1. ENTROU NO CANAL
         if (!oldState.channel && newState.channel) {
             const embed = new EmbedBuilder()
                 .setColor('Green').setTitle('Voz: Membro Entrou')
@@ -199,8 +171,6 @@ module.exports = (client) => {
                 .setThumbnail(user.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
-
-        // 2. SAIU DO CANAL
         if (oldState.channel && !newState.channel) {
             const embed = new EmbedBuilder()
                 .setColor('Orange').setTitle('Voz: Membro Saiu')
@@ -208,8 +178,6 @@ module.exports = (client) => {
                 .setThumbnail(user.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
-
-        // 3. TROCOU DE CANAL
         if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
             const embed = new EmbedBuilder()
                 .setColor('Blue').setTitle('Voz: Membro Trocou de Canal')
@@ -222,4 +190,96 @@ module.exports = (client) => {
             await logChannel.send({ embeds: [embed] });
         }
     });
+
+    /* ============================================================
+       [NOVO] LOGS DE CANAIS (CRIAR, DELETAR, ATUALIZAR)
+       ============================================================ */
+
+    // --- OUVINTE DE CANAL CRIADO ---
+    client.on(Events.ChannelCreate, async (channel) => {
+        const logChannel = await getLogChannel();
+        if (!logChannel || !channel.guild) return;
+
+        const embed = new EmbedBuilder()
+            .setColor('Green')
+            .setTitle('Canal Criado')
+            .setDescription(
+                `**Nome:** ${channel.name}\n` +
+                `**ID:** ${channel.id}\n` +
+                `**Tipo:** ${ChannelType[channel.type]}`
+            )
+            .setTimestamp();
+
+        // Pega quem criou do Audit Log
+        const fetchedLogs = await channel.guild.fetchAuditLogs({
+            limit: 1,
+            type: AuditLogEvent.ChannelCreate,
+        }).catch(() => null);
+        
+        const createLog = fetchedLogs?.entries.first();
+        if (createLog && createLog.target.id === channel.id && createLog.createdAt > (Date.now() - 5000)) {
+            embed.setDescription(
+                embed.data.description + `\n**Criado por:** ${createLog.executor}`
+            );
+        }
+        await logChannel.send({ embeds: [embed] });
+    });
+
+    // --- OUVINTE DE CANAL DELETADO ---
+    client.on(Events.ChannelDelete, async (channel) => {
+        const logChannel = await getLogChannel();
+        if (!logChannel || !channel.guild) return;
+
+        const embed = new EmbedBuilder()
+            .setColor('DarkRed')
+            .setTitle('Canal Deletado')
+            .setDescription(
+                `**Nome:** ${channel.name}\n` +
+                `**ID:** ${channel.id}\n` +
+                `**Tipo:** ${ChannelType[channel.type]}`
+            )
+            .setTimestamp();
+
+        // Pega quem deletou do Audit Log
+        const fetchedLogs = await channel.guild.fetchAuditLogs({
+            limit: 1,
+            type: AuditLogEvent.ChannelDelete,
+        }).catch(() => null);
+        
+        const deleteLog = fetchedLogs?.entries.first();
+        if (deleteLog && deleteLog.target.id === channel.id && deleteLog.createdAt > (Date.now() - 5000)) {
+            embed.setDescription(
+                embed.data.description + `\n**Deletado por:** ${deleteLog.executor}`
+            );
+        }
+        await logChannel.send({ embeds: [embed] });
+    });
+
+    // --- OUVINTE DE CANAL ATUALIZADO (MUDANÇA DE NOME) ---
+    client.on(Events.ChannelUpdate, async (oldChannel, newChannel) => {
+        const logChannel = await getLogChannel();
+        if (!logChannel || !newChannel.guild) return;
+
+        let embed = null;
+
+        // Mudança de Nome
+        if (oldChannel.name !== newChannel.name) {
+            embed = new EmbedBuilder()
+                .setColor('Blue')
+                .setTitle('Canal Renomeado')
+                .setDescription(`**Canal:** ${newChannel}`)
+                .addFields(
+                    { name: 'Nome Antigo', value: `\`${oldChannel.name}\`` },
+                    { name: 'Nome Novo', value: `\`${newChannel.name}\`` }
+                )
+                .setTimestamp();
+        }
+        
+        // (Poderíamos adicionar logs para Tópico, Permissões, etc., mas isso já cobre o principal)
+
+        if (embed) {
+            await logChannel.send({ embeds: [embed] });
+        }
+    });
+
 };
