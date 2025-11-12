@@ -1,45 +1,73 @@
 /* ========================================================================
-   NOVO HANDLER: commands/adm/autoResponderHandler.js
+   HANDLER ATUALIZADO: commands/adm/autoResponderHandler.js (V3 - "Inteligente")
    
-   - Vigia o chat por palavras-gatilho (definidas no .json)
-   - Responde o usuário com uma frase aleatória.
+   - Agora entende 3 tipos de gatilho: Menção, Palavra-Chave e Exato.
+   - Lê o novo 'auto_replies.json' estruturado.
    ======================================================================== */
    
 const { Events } = require('discord.js');
 const path = require('path');
-// Puxa o helper de ler JSON
 const { safeReadJson } = require('../liga/utils/helpers.js');
 
-// Caminho para o novo arquivo de respostas
 const repliesPath = path.join(__dirname, 'auto_replies.json');
+
+// Função para pegar uma resposta aleatória
+function getRandomReply(replies) {
+    if (!replies || replies.length === 0) return null;
+    return replies[Math.floor(Math.random() * replies.length)];
+}
 
 module.exports = (client) => {
 
     client.on(Events.MessageCreate, async (message) => {
-        // 1. Ignora DMs, ignora outros bots (incluindo ele mesmo)
         if (!message.guild || message.author.bot) return;
 
-        // 2. Pega o conteúdo da mensagem, em minúsculas e sem espaços
-        const trigger = message.content.toLowerCase().trim();
-
-        // Se a mensagem for vazia (só um anexo), ignora
-        if (!trigger) return;
+        const content = message.content.toLowerCase();
+        if (!content) return;
 
         try {
-            // 3. Lê o nosso arquivo de respostas
             const repliesConfig = safeReadJson(repliesPath);
+            let replyMessage = null;
 
-            // 4. Verifica se a MENSAGEM EXATA está no nosso arquivo
-            //    (Ex: se o usuário digitou SÓ "coelho")
-            if (repliesConfig[trigger]) {
-                const replies = repliesConfig[trigger];
-                
-                // 5. Pega uma resposta aleatória da lista
-                const randomReply = replies[Math.floor(Math.random() * replies.length)];
-
-                // 6. Responde ao usuário (message.reply() marca o usuário)
-                await message.reply(randomReply);
+            // --- TIPO 1: GATILHO DE MENÇÃO ---
+            // Se o bot foi mencionado
+            if (message.mentions.has(client.user.id)) {
+                for (const trigger in repliesConfig.mentionTriggers) {
+                    // \b é "word boundary" - impede que "ola" pegue "bola"
+                    const regex = new RegExp(`\\b${trigger}\\b`, 'i');
+                    if (regex.test(content)) {
+                        replyMessage = getRandomReply(repliesConfig.mentionTriggers[trigger]);
+                        break;
+                    }
+                }
             }
+
+            // --- TIPO 2: GATILHO DE PALAVRA-CHAVE ---
+            // Se não foi uma menção, checa por palavras-chave
+            if (!replyMessage) {
+                for (const trigger in repliesConfig.keywordTriggers) {
+                    const regex = new RegExp(`\\b${trigger}\\b`, 'i');
+                    if (regex.test(content)) {
+                        replyMessage = getRandomReply(repliesConfig.keywordTriggers[trigger]);
+                        break;
+                    }
+                }
+            }
+
+            // --- TIPO 3: GATILHO EXATO ---
+            // Se ainda não achou, checa por gatilho exato (só a palavra)
+            if (!replyMessage) {
+                const exactMatch = repliesConfig.exactTriggers[content];
+                if (exactMatch) {
+                    replyMessage = getRandomReply(exactMatch);
+                }
+            }
+            
+            // --- Resposta ---
+            if (replyMessage) {
+                await message.reply(replyMessage);
+            }
+
         } catch (err) {
             console.error("Erro no Auto-Responder:", err);
         }
