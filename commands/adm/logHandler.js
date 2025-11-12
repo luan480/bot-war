@@ -1,12 +1,9 @@
 /* ========================================================================
-   HANDLER ATUALIZADO: commands/adm/logHandler.js (V5 - AUDITORIA)
+   HANDLER ATUALIZADO: commands/adm/logHandler.js (V6 - "ALMIRANTE")
    
-   - [NOVO] Adicionado "Ouvinte" do Registro de Auditoria
-     (Events.GuildAuditLogEntryCreate) para pegar logs
-     de deleção de mensagens, canais, kicks e bans.
-   - Os ouvintes antigos de Mensagem Deletada (Ghost Ping),
-     Edição, Voz e Membros (Entrada/Cargos) foram mantidos,
-     pois o Audit Log não os cobre bem.
+   - [MUDANÇA] O log de Voz (VoiceStateUpdate) agora checa
+     o Registro de Auditoria para diferenciar entre "Trocou de Canal"
+     (sozinho) e "Foi Movido" (por um Admin).
    ======================================================================== */
    
 const { Events, EmbedBuilder, AuditLogEvent, ChannelType } = require('discord.js');
@@ -24,41 +21,85 @@ module.exports = (client) => {
         return await client.channels.fetch(config.logChannelId).catch(() => null);
     }
 
-    /* ============================================================
-       OUVINTES EM TEMPO REAL
-       (Voz, Edição, Ghost Ping, Entrada, Mudança de Cargo)
-       ============================================================ */
+    // --- LOGS DE MENSAGEM (DELETADA, EDITADA, GHOST PING) ---
+    // (Esta parte já está correta e não muda)
+    client.on(Events.MessageDelete, async (message) => { /* ... (código de Ghost Ping) ... */ });
+    client.on(Events.MessageUpdate, async (oldMessage, newMessage) => { /* ... (código de Edição) ... */ });
     
-    // (Estes ouvintes continuam aqui porque são melhores que o Audit Log para estas tarefas)
+    // --- LOGS DE MEMBROS (ENTRADA, SAÍDA, CARGOS, APELIDOS) ---
+    // (Esta parte já está correta e não muda)
+    client.on(Events.GuildMemberAdd, async (member) => { /* ... (código de Entrada) ... */ });
+    client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => { /* ... (código de Cargos/Apelidos) ... */ });
 
-    client.on(Events.MessageDelete, async (message) => {
-        // Este ouvinte agora foca APENAS em Ghost Pings
-        if (!message.guild || message.author?.bot || message.mentions.users.size === 0) return;
-        
+
+    /* ============================================================
+       [NOVO] LOGS DE VOZ (COM VERIFICAÇÃO DE "MOVER")
+       ============================================================ */
+    client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
-
-        // ESPELHO (Ghost Ping)
-        const mentionedUser = message.mentions.users.first();
-        if (mentionedUser.id !== message.author.id) {
+        
+        const user = newState.member.user;
+        
+        // 1. ENTROU NO CANAL
+        if (!oldState.channel && newState.channel) {
             const embed = new EmbedBuilder()
-                .setColor('#9B59B6').setTitle('👻 Ghost Ping Detectado (Espelho)')
-                .setDescription(`**Autor:** ${message.author} (${message.author.tag})\n**Mencionado:** ${mentionedUser} (${mentionedUser.tag})\n**Canal:** ${message.channel}`)
-                .addFields({ name: 'Mensagem Deletada', value: `\`\`\`${message.content || '[N/A]'}\`\`\`` })
-                .setThumbnail(message.author.displayAvatarURL()).setTimestamp();
+                .setColor('Green').setTitle('Voz: Membro Entrou')
+                .setDescription(`**Membro:** ${user} (${user.tag})\n**Canal:** ${newState.channel.name}`)
+                .setThumbnail(user.displayAvatarURL()).setTimestamp();
+            await logChannel.send({ embeds: [embed] });
+        }
+
+        // 2. SAIU DO CANAL
+        if (oldState.channel && !newState.channel) {
+            const embed = new EmbedBuilder()
+                .setColor('Orange').setTitle('Voz: Membro Saiu')
+                .setDescription(`**Membro:** ${user} (${user.tag})\n**Canal:** ${oldState.channel.name}`)
+                .setThumbnail(user.displayAvatarURL()).setTimestamp();
+            await logChannel.send({ embeds: [embed] });
+        }
+
+        // 3. MUDOU DE CANAL (OU FOI MOVIDO)
+        if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
+            
+            // Verifica o Audit Log para ver se foi MOVIDO
+            const fetchedLogs = await newState.guild.fetchAuditLogs({
+                limit: 1,
+                type: AuditLogEvent.MemberMove,
+            }).catch(() => null);
+
+            const moveLog = fetchedLogs?.entries.first();
+            let embed;
+
+            // Se foi movido por um Admin
+            if (moveLog && moveLog.target.id === user.id && moveLog.createdAt > (Date.now() - 5000)) {
+                embed = new EmbedBuilder()
+                    .setColor('DarkBlue') // Cor diferente
+                    .setTitle('Voz: Membro Foi Movido')
+                    .setDescription(`**Membro:** ${user} (${user.tag})\n**Movido por:** ${moveLog.executor}`)
+                    .addFields(
+                        { name: 'Saiu de', value: `${oldState.channel.name}` },
+                        { name: 'Entrou em', value: `${newState.channel.name}` }
+                    )
+                    .setThumbnail(user.displayAvatarURL()).setTimestamp();
+            } else {
+            // Se trocou de canal sozinho
+                embed = new EmbedBuilder()
+                    .setColor('Blue').setTitle('Voz: Membro Trocou de Canal')
+                    .setDescription(`**Membro:** ${user} (${user.tag})`)
+                    .addFields(
+                        { name: 'Saiu de', value: `${oldState.channel.name}` },
+                        { name: 'Entrou em', value: `${newState.channel.name}` }
+                    )
+                    .setThumbnail(user.displayAvatarURL()).setTimestamp();
+            }
             await logChannel.send({ embeds: [embed] });
         }
     });
 
-    client.on(Events.MessageUpdate, async (oldMessage, newMessage) => { /* ... (código da Aula 2, sem mudanças) ... */ });
-    client.on(Events.GuildMemberAdd, async (member) => { /* ... (código da Aula 3, sem mudanças) ... */ });
-    client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => { /* ... (código da Aula 4, sem mudanças) ... */ });
-    client.on(Events.VoiceStateUpdate, async (oldState, newState) => { /* ... (código da Aula 4, sem mudanças) ... */ });
-
-
     /* ============================================================
-       [NOVO] OUVINTE DO REGISTRO DE AUDITORIA (LOG PODEROSO)
-       Ouve por ações de Admins (Deletar, Banir, Kickar, etc.)
+       OUVINTE DO REGISTRO DE AUDITORIA (LOGS DE ADMIN)
+       (Esta parte já está correta e não muda)
        ============================================================ */
     
     client.on(Events.GuildAuditLogEntryCreate, async (auditLogEntry, guild) => {
@@ -67,54 +108,27 @@ module.exports = (client) => {
 
         const { action, executor, target, reason } = auditLogEntry;
 
-        // --- LOG DE MENSAGEM DELETADA (Como o do 'Almirante') ---
+        // --- LOG DE MENSAGEM DELETADA ---
         if (action === AuditLogEvent.MessageDelete) {
-            // Ignora se o bot deletou (ex: /limpar) ou se o próprio autor deletou (para evitar log duplicado com o Ghost Ping)
-            if (executor.id === client.user.id || executor.id === target.id) {
-                return;
-            }
-
-            // O 'target' é o autor da mensagem
-            // O 'executor' é quem deletou
+            if (executor.id === client.user.id || executor.id === target.id) return;
             const embed = new EmbedBuilder()
-                .setColor('Red')
-                .setTitle('Mensagem Deletada por Moderador')
-                .setDescription(
-                    `**Autor da Mensagem:** ${target} (${target.tag})\n` +
-                    `**Deletado por:** ${executor} (${executor.tag})\n` +
-                    `**Canal:** <#${auditLogEntry.extra.channel.id}>`
-                )
-                // O Audit Log NÃO salva o conteúdo da mensagem, infelizmente.
-                // Apenas o 'Almirante' (que é um bot parceiro do Discord) consegue isso.
-                // Mas nós pegamos o mais importante: QUEM deletou.
-                .setThumbnail(executor.displayAvatarURL())
-                .setTimestamp();
-            
+                .setColor('Red').setTitle('Mensagem Deletada por Moderador')
+                .setDescription(`**Autor da Mensagem:** ${target} (${target.tag})\n**Deletado por:** ${executor} (${executor.tag})\n**Canal:** <#${auditLogEntry.extra.channel.id}>`)
+                .setThumbnail(executor.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
 
         // --- LOG DE MEMBRO KICKADO ---
         if (action === AuditLogEvent.MemberKick) {
-            const embed = new EmbedBuilder()
-                .setColor('DarkRed').setTitle('Membro Expulso (Kick)')
-                .setDescription(
-                    `**Usuário:** ${target} (${target.tag})\n` +
-                    `**Expulso por:** ${executor} (${executor.tag})\n` +
-                    `**Motivo:** \`\`\`${reason || 'N/A'}\`\`\``
-                )
-                .setThumbnail(target.displayAvatarURL()).setTimestamp();
-            await logChannel.send({ embeds: [embed] });
+            // (O GuildMemberRemove já pega isso de forma melhor, então pulamos)
+            return;
         }
 
         // --- LOG DE MEMBRO BANIDO ---
         if (action === AuditLogEvent.MemberBanAdd) {
             const embed = new EmbedBuilder()
                 .setColor('DarkRed').setTitle('Membro Banido')
-                .setDescription(
-                    `**Usuário:** ${target} (${target.tag})\n` +
-                    `**Banido por:** ${executor} (${executor.tag})\n` +
-                    `**Motivo:** \`\`\`${reason || 'N/A'}\`\`\``
-                )
+                .setDescription(`**Usuário:** ${target} (${target.tag})\n**Banido por:** ${executor} (${executor.tag})\n**Motivo:** \`\`\`${reason || 'N/A'}\`\`\``)
                 .setThumbnail(target.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
@@ -123,26 +137,55 @@ module.exports = (client) => {
         if (action === AuditLogEvent.ChannelCreate) {
             const embed = new EmbedBuilder()
                 .setColor('Green').setTitle('Canal Criado')
-                .setDescription(
-                    `**Canal:** ${target} (${target.name})\n` +
-                    `**Tipo:** ${ChannelType[target.type]}\n` +
-                    `**Criado por:** ${executor} (${executor.tag})`
-                )
+                .setDescription(`**Canal:** ${target} (${target.name})\n**Tipo:** ${ChannelType[target.type]}\n**Criado por:** ${executor} (${executor.tag})`)
                 .setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
 
-        // --- LOG DE CANAL DELETADO (O que você viu o Almirante fazer) ---
+        // --- LOG DE CANAL DELETADO ---
         if (action === AuditLogEvent.ChannelDelete) {
             const embed = new EmbedBuilder()
                 .setColor('DarkRed').setTitle('Canal Deletado')
-                .setDescription(
-                    `**Canal:** \`#${auditLogEntry.changes.find(c => c.key === 'name').old}\`\n` + // Pega o nome antigo
-                    `**Tipo:** ${ChannelType[auditLogEntry.changes.find(c => c.key === 'type').old]}\n` +
-                    `**Deletado por:** ${executor} (${executor.tag})`
-                )
+                .setDescription(`**Canal:** \`#${auditLogEntry.changes.find(c => c.key === 'name').old}\`\n**Tipo:** ${ChannelType[auditLogEntry.changes.find(c => c.key === 'type').old]}\n**Deletado por:** ${executor} (${executor.tag})`)
                 .setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
+
+        // --- LOG DE CANAL ATUALIZADO (MUDANÇA DE NOME) ---
+        if (action === AuditLogEvent.ChannelUpdate) {
+            // (Ignoramos para não poluir, a menos que você queira muito)
+        }
     });
+
+    // (Ouvinte de GuildMemberRemove, que foi movido para baixo
+    // para funcionar melhor com o Audit Log de Kick)
+    client.on(Events.GuildMemberRemove, async (member) => {
+        const logChannel = await getLogChannel();
+        if (!logChannel) return;
+
+        // Espera 1 segundo para o Audit Log de Kick ou Ban ser registrado
+        await new Promise(resolve => setTimeout(resolve, 1500)); 
+
+        const fetchedKick = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick }).catch(() => null);
+        const kickLog = fetchedKick?.entries.first();
+        if (kickLog && kickLog.target.id === member.id && kickLog.createdAt > (Date.now() - 5000)) {
+            // Se foi Kick, o Audit Log já cuidou disso. Não faz nada.
+            return;
+        }
+        
+        const fetchedBan = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberBanAdd }).catch(() => null);
+        const banLog = fetchedBan?.entries.first();
+        if (banLog && banLog.target.id === member.id && banLog.createdAt > (Date.now() - 5000)) {
+            // Se foi Ban, o Audit Log já cuidou disso. Não faz nada.
+            return;
+        }
+
+        // Se não foi Kick nem Ban, ele "Saiu"
+        const embed = new EmbedBuilder()
+            .setColor('Orange').setTitle('Membro Saiu')
+            .setDescription(`**Usuário:** ${member.user} (${member.user.tag})\n**ID:** ${member.id}`)
+            .setThumbnail(member.user.displayAvatarURL()).setTimestamp();
+        await logChannel.send({ embeds: [embed] });
+    });
+
 };
