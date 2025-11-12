@@ -1,8 +1,8 @@
 /* ========================================================================
-   NOVO COMANDO: /postar-guia-servidor
+   ARQUIVO: commands/adm/postar-guia-servidor.js (CORRIGIDO)
    
-   - Posta um embed único e completo com o Guia do Servidor,
-     linkando todos os canais importantes.
+   - Corrigido o SyntaxError (o ponto extra ' +.' )
+     que estava quebrando o arquivo.
    ======================================================================== */
 
 const { 
@@ -83,7 +83,8 @@ module.exports = {
                     name: '6. Outras Atividades (Descanso)',
                     value: (
                         '• **Cargos de Jogos:** Pegue cargos de bots (Mudae, Myuu) em <#1082774763853840471>.\n' +
-                        '• **Chat Geral:** Converse com outros membros em <#849696656730357762>.\n' +.
+                        // [CORREÇÃO AQUI] Removido o '.' extra
+                        '• **Chat Geral:** Converse com outros membros em <#849696656730357762>.\n' + 
                         '• **Notícias:** Fique por dentro de tudo nos <#1228294929546219530> e <#1068044448128307230>.'
                     )
                 }
