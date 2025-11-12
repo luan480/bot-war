@@ -1,4 +1,4 @@
-/* commands/adm/promotionHandler.js (Refatorado V3 - Com Logs) */
+/* commands/adm/promotionHandler.js (Refatorado V4 - Mais Logs) */
 const fs = require('fs');
 const path = require('path');
 const { Events, DiscordjsErrorCodes } = require('discord.js');
@@ -11,6 +11,9 @@ const serverDataPath = path.join(__dirname, 'server_data.json');
  * Lógica central para processar um print.
  */
 async function processPrintMessage(message, printsChannelId, printsRoleId) {
+    // Adiciona log para sabermos que cargo ele está a procurar
+    // console.log(`[Debug] Processando msg ${message.id}. Procurando cargo ID: ${printsRoleId}`);
+
     // Ignora bots e mensagens fora do canal de prints
     if (message.author.bot || message.channel.id !== printsChannelId) {
         return 'ignorado_bot_ou_canal';
@@ -29,6 +32,7 @@ async function processPrintMessage(message, printsChannelId, printsRoleId) {
 
         // Verifica se o membro tem o cargo necessário
         if (!member.roles.cache.has(printsRoleId)) {
+            // console.log(`[Debug] Membro ${member.user.tag} não tem o cargo ${printsRoleId}.`);
             return 'ignorado_sem_cargo';
         }
         

@@ -1,4 +1,4 @@
-/* commands/adm/catchUpPrintsHandler.js (V3 - Com Logs) */
+/* commands/adm/catchUpPrintsHandler.js (V4 - Com Logs) */
 const fs = require('fs');
 const path = require('path');
 // Importa a lógica de processamento
@@ -22,14 +22,32 @@ const catchUpPrintsHandler = async (client) => {
         
         // Verifica se este servidor tem o sistema de prints configurado
         if (config && config.printsChannelId && config.printsRoleId) {
-            console.log(`[Catch-Up] Verificando servidor: ${guild.name}`);
+            console.log(`[Catch-Up] Verificando servidor: ${guild.name} (ID: ${guild.id})`);
+            console.log(`[Catch-Up] Configuração: Canal ID ${config.printsChannelId}, Cargo ID ${config.printsRoleId}`);
+            
             try {
+                // Verifica as permissões do bot no canal
                 const channel = await client.channels.fetch(config.printsChannelId);
                 if (!channel || !channel.isTextBased()) {
-                    console.warn(`[Catch-Up] Canal de prints (${config.printsChannelId}) não encontrado no servidor ${guild.name}.`);
+                    console.warn(`[Catch-Up] Canal de prints (${config.printsChannelId}) não encontrado.`);
                     continue;
                 }
-                console.log(`[Catch-Up] Lendo canal: #${channel.name}`);
+                
+                const perms = channel.permissionsFor(client.user.id);
+                if (!perms.has('ViewChannel')) {
+                    console.error(`[Catch-Up] FALHA: Bot não tem permissão de 'Ver Canal' em #${channel.name}.`);
+                    continue;
+                }
+                if (!perms.has('ReadMessageHistory')) {
+                    console.error(`[Catch-Up] FALHA: Bot não tem permissão de 'Ler Histórico de Mensagens' em #${channel.name}.`);
+                    continue;
+                }
+                if (!perms.has('AddReactions')) {
+                    console.error(`[Catch-Up] FALHA: Bot não tem permissão de 'Adicionar Reações' em #${channel.name}.`);
+                    continue;
+                }
+                
+                console.log(`[Catch-Up] Lendo canal: #${channel.name} (Permissões OK)`);
 
                 // Busca as últimas 100 mensagens no canal
                 const messages = await channel.messages.fetch({ limit: 100 });
@@ -46,8 +64,8 @@ const catchUpPrintsHandler = async (client) => {
                     if (resultado === 'processado_com_sucesso') {
                         processedCount++;
                     } 
-                    // Se for um motivo de "ignorar" que não seja 'ja_processado' ou 'sem_anexo', mostra no log
-                    else if (resultado !== 'ignorado_ja_processado' && resultado !== 'ignorado_sem_anexo' && resultado !== 'ignorado_bot_ou_canal') {
+                    // Loga todos os motivos de "ignorar" para sabermos o que se passa
+                    else if (resultado !== 'ignorado_ja_processado') {
                         console.log(`[Catch-Up] Mensagem ${message.id} ignorada. Motivo: ${resultado}`);
                     }
                 }
@@ -60,8 +78,9 @@ const catchUpPrintsHandler = async (client) => {
 
             } catch (err) {
                 console.error(`[Catch-Up] FALHA CRÍTICA ao verificar canal no servidor ${guild.name}: ${err.message}`);
-                console.error("[Catch-Up] Isto pode ser uma PERMISSÃO EM FALTA (Ver Histórico) ou (Ver Canal).");
             }
+        } else {
+             console.log(`[Catch-Up] Servidor ${guild.name} (ID: ${guild.id}) não tem configuração de prints.`);
         }
     }
     console.log("[Catch-Up] Verificação de prints perdidos concluída.");
