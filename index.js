@@ -1,7 +1,8 @@
-/* index.js (ATUALIZADO COM INTENT DE AUDITORIA) */
+/* index.js (ATUALIZADO COM STATUS PERSONALIZADO) */
    
 require('dotenv').config(); 
-const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
+// [MUDANÇA AQUI] Importamos o 'ActivityType'
+const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -13,7 +14,7 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildBans, 
         GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildAuditLogs // [NOVO] Para ler o Registro de Auditoria
+        GatewayIntentBits.GuildAuditLogs
     ],
 });
 
@@ -55,6 +56,11 @@ const welcomeHandler = require('./commands/adm/welcomeHandler.js');
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
+
+    // [MUDANÇA AQUI] Define o status do bot
+    c.user.setActivity('o campo de batalha', { type: ActivityType.Watching });
+
+    // --- Ativa os Vigias ---
     try {
         promotionVigia(client); 
         console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
