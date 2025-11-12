@@ -1,8 +1,5 @@
 /* ========================================================================
-   ARQUIVO: commands/adm/logHandler.js (V6 - COMPLETO E CORRIGIDO)
-   
-   - Corrige o erro de 'SyntaxError: Unexpected end of input'
-     garantindo que o arquivo está completo.
+   ARQUIVO: commands/adm/logHandler.js (V6 - CORRIGE O CRASH)
    ======================================================================== */
    
 const { Events, EmbedBuilder, AuditLogEvent, ChannelType } = require('discord.js');
@@ -13,7 +10,6 @@ const logConfigPath = path.join(__dirname, 'log_config.json');
 
 module.exports = (client) => {
 
-    // Função para buscar o canal de log
     async function getLogChannel() {
         const config = safeReadJson(logConfigPath);
         if (!config.logChannelId) return null;
@@ -25,9 +21,7 @@ module.exports = (client) => {
         if (!message.guild || message.author?.bot) return;
         const logChannel = await getLogChannel();
         if (!logChannel) return;
-        
         try {
-            // ESPELHO (Ghost Ping)
             if (message.mentions.users.size > 0) {
                 const mentionedUser = message.mentions.users.first();
                 if (mentionedUser.id !== message.author.id) {
@@ -48,7 +42,6 @@ module.exports = (client) => {
         if (!newMessage.guild || newMessage.author?.bot || oldMessage.content === newMessage.content) return;
         const logChannel = await getLogChannel();
         if (!logChannel) return;
-
         const embed = new EmbedBuilder()
             .setColor('Yellow').setTitle('Mensagem Editada')
             .setDescription(`**Autor:** ${newMessage.author.tag} (${newMessage.author.id})\n**Canal:** ${newMessage.channel}\n[Ir para a Mensagem](${newMessage.url})`)
@@ -57,9 +50,7 @@ module.exports = (client) => {
                 { name: 'Conteúdo Novo', value: `\`\`\`${newMessage.content.slice(0, 1000) || '[N/A]'}\`\`\`` }
             )
             .setThumbnail(newMessage.author.displayAvatarURL()).setTimestamp();
-        try {
-            await logChannel.send({ embeds: [embed] });
-        } catch (err) { console.error("Erro no log MessageUpdate:", err); }
+        try { await logChannel.send({ embeds: [embed] }); } catch (err) { console.error("Erro no log MessageUpdate:", err); }
     });
     
     // --- LOGS DE MEMBROS (ENTRADA, CARGOS, APELIDOS) ---
@@ -76,8 +67,6 @@ module.exports = (client) => {
     client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
-
-        // 1. MUDANÇA DE APELIDO
         if (oldMember.nickname !== newMember.nickname) {
             const embed = new EmbedBuilder()
                 .setColor('Blue').setTitle('Mudança de Apelido')
@@ -89,18 +78,14 @@ module.exports = (client) => {
                 .setThumbnail(newMember.user.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
-
-        // 2. MUDANÇA DE CARGOS
         const oldRoles = oldMember.roles.cache;
         const newRoles = newMember.roles.cache;
-
         if (oldRoles.size !== newRoles.size) {
             const embed = new EmbedBuilder()
                 .setColor('Blue').setTitle('Cargos Atualizados')
                 .setDescription(`**Membro:** ${newMember.user} (${newMember.user.tag})`);
             const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberRoleUpdate }).catch(() => null);
             const roleLog = fetchedLogs?.entries.first();
-            
             if (roleLog && roleLog.target.id === newMember.id && roleLog.createdAt > (Date.now() - 5000)) {
                 embed.addFields({ name: 'Alterado por', value: `${roleLog.executor}` });
             } else {
@@ -122,10 +107,7 @@ module.exports = (client) => {
     client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
-        
         const user = newState.member.user;
-        
-        // 1. ENTROU NO CANAL
         if (!oldState.channel && newState.channel) {
             const embed = new EmbedBuilder()
                 .setColor('Green').setTitle('Voz: Membro Entrou')
@@ -133,8 +115,6 @@ module.exports = (client) => {
                 .setThumbnail(user.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
-
-        // 2. SAIU DO CANAL
         if (oldState.channel && !newState.channel) {
             const embed = new EmbedBuilder()
                 .setColor('Orange').setTitle('Voz: Membro Saiu')
@@ -142,23 +122,13 @@ module.exports = (client) => {
                 .setThumbnail(user.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
-
-        // 3. MUDOU DE CANAL (OU FOI MOVIDO)
         if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
-            
-            const fetchedLogs = await newState.guild.fetchAuditLogs({
-                limit: 1,
-                type: AuditLogEvent.MemberMove,
-            }).catch(() => null);
-
+            const fetchedLogs = await newState.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberMove }).catch(() => null);
             const moveLog = fetchedLogs?.entries.first();
             let embed;
-
-            // Se foi movido por um Admin
             if (moveLog && moveLog.target.id === user.id && moveLog.createdAt > (Date.now() - 5000)) {
                 embed = new EmbedBuilder()
-                    .setColor('DarkBlue') 
-                    .setTitle('Voz: Membro Foi Movido')
+                    .setColor('DarkBlue').setTitle('Voz: Membro Foi Movido')
                     .setDescription(`**Membro:** ${user} (${user.tag})\n**Movido por:** ${moveLog.executor}`)
                     .addFields(
                         { name: 'Saiu de', value: `${oldState.channel.name}` },
@@ -166,7 +136,6 @@ module.exports = (client) => {
                     )
                     .setThumbnail(user.displayAvatarURL()).setTimestamp();
             } else {
-            // Se trocou de canal sozinho
                 embed = new EmbedBuilder()
                     .setColor('Blue').setTitle('Voz: Membro Trocou de Canal')
                     .setDescription(`**Membro:** ${user} (${user.tag})`)
@@ -174,8 +143,7 @@ module.exports = (client) => {
                         { name: 'Saiu de', value: `${oldState.channel.name}` },
                         { name: 'Entrou em', value: `${newState.channel.name}` }
                     )
-                    .setThumbnail(user.displayAvatarURL())
-                    .setTimestamp(); // <-- ESTA ERA A LINHA 143 QUEBRADA
+                    .setThumbnail(user.displayAvatarURL()).setTimestamp();
             }
             await logChannel.send({ embeds: [embed] });
         }
@@ -185,10 +153,8 @@ module.exports = (client) => {
     client.on(Events.GuildAuditLogEntryCreate, async (auditLogEntry, guild) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
-
         const { action, executor, target, reason } = auditLogEntry;
-
-        // --- LOG DE MENSAGEM DELETADA ---
+        
         if (action === AuditLogEvent.MessageDelete) {
             if (executor.id === client.user.id || (target && executor.id === target.id)) return;
             const embed = new EmbedBuilder()
@@ -197,8 +163,13 @@ module.exports = (client) => {
                 .setThumbnail(executor.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
-
-        // --- LOG DE MEMBRO BANIDO ---
+        if (action === AuditLogEvent.MemberKick) {
+            const embed = new EmbedBuilder()
+                .setColor('DarkRed').setTitle('Membro Expulso (Kick)')
+                .setDescription(`**Usuário:** ${target} (${target.tag})\n**Expulso por:** ${executor} (${executor.tag})\n**Motivo:** \`\`\`${reason || 'N/A'}\`\`\``)
+                .setThumbnail(target.displayAvatarURL()).setTimestamp();
+            await logChannel.send({ embeds: [embed] });
+        }
         if (action === AuditLogEvent.MemberBanAdd) {
             const embed = new EmbedBuilder()
                 .setColor('DarkRed').setTitle('Membro Banido')
@@ -206,8 +177,6 @@ module.exports = (client) => {
                 .setThumbnail(target.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
-        
-        // --- LOG DE CANAL CRIADO ---
         if (action === AuditLogEvent.ChannelCreate) {
             const embed = new EmbedBuilder()
                 .setColor('Green').setTitle('Canal Criado')
@@ -215,8 +184,6 @@ module.exports = (client) => {
                 .setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
-
-        // --- LOG DE CANAL DELETADO ---
         if (action === AuditLogEvent.ChannelDelete) {
             const embed = new EmbedBuilder()
                 .setColor('DarkRed').setTitle('Canal Deletado')
@@ -226,7 +193,7 @@ module.exports = (client) => {
         }
     });
 
-    // --- OUVINTE DE MEMBRO SAIU (A LÓGICA CORRIGIDA) ---
+    // --- [CORREÇÃO AQUI] OUVINTE DE MEMBRO SAIU (A LÓGICA CORRIGIDA) ---
     client.on(Events.GuildMemberRemove, async (member) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
@@ -236,16 +203,16 @@ module.exports = (client) => {
         const fetchedKick = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick }).catch(() => null);
         const kickLog = fetchedKick?.entries.first();
         
+        // [VERIFICAÇÃO DE SEGURANÇA] Verifica se kickLog e kickLog.target existem
         if (kickLog && kickLog.target && kickLog.target.id === member.id && kickLog.createdAt > (Date.now() - 5000)) {
-            // Se foi Kick, o Audit Log já cuidou disso (ele dispara o 'MemberKick').
-            // No V6, o 'MemberKick' é detectado pelo AuditLogEntryCreate, então podemos
-            // remover o log duplicado que estava aqui.
+            // Se foi Kick, o Audit Log já cuidou disso.
             return;
         }
         
         const fetchedBan = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberBanAdd }).catch(() => null);
         const banLog = fetchedBan?.entries.first();
         
+        // [VERIFICAÇÃO DE SEGURANÇA] Verifica se banLog e banLog.target existem
         if (banLog && banLog.target && banLog.target.id === member.id && banLog.createdAt > (Date.now() - 5000)) {
             // Se foi Ban, o Audit Log já cuidou disso.
             return;
