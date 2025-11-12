@@ -1,14 +1,11 @@
-/* ========================================================================
-   ARQUIVO index.js (V6 - "PERFEITO" E LIMPO)
-   
-   - [MUDANÇA] Removida toda a lógica de status do 'ClientReady'.
-   - [MUDANÇA] Importado e ativado o 'statusHandler.js'.
-   ======================================================================== */
+/* index.js (ATUALIZADO PARA CORRIGIR 'File is not defined') */
    
 require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
+// [NOVO] Adiciona a classe 'File' que está faltando para o 'undici'
+const { File } = require('node:buffer'); 
 
 const client = new Client({
     intents: [
@@ -34,8 +31,7 @@ for (const folder of commandFolders) {
     for (const file of commandFiles) {
         const filePath = path.join(folderPath, file);
         try {
-            // [ATUALIZADO] Agora ignora o statusHandler também
-            if (file.endsWith('Handler.js') || file.endsWith('handler.js')) {
+            if (file.endsWith('Handler.js')) {
                 console.log(`[INFO] Módulo handler encontrado: ${file}`);
                 continue; 
             }
@@ -57,18 +53,16 @@ const ticketOpenHandler = require('./commands/ticket/ticketOpenHandler.js');
 const ticketCloseHandler = require('./commands/ticket/ticketCloseHandler.js');
 const logHandler = require('./commands/adm/logHandler.js'); 
 const welcomeHandler = require('./commands/adm/welcomeHandler.js');
-const autoResponderHandler = require('./commands/adm/autoResponderHandler.js');
-const statusHandler = require('./commands/adm/statusHandler.js'); // [NOVO]
+const autoResponderHandler = require('./commands/adm/autoResponderHandler.js'); 
+const statusHandler = require('./commands/adm/statusHandler.js');
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
-
-    // [REMOVIDO] A lista de 30 frases e o setInterval foram movidos.
     
     // --- Ativa os Vigias ---
     try {
-        statusHandler(client); // [NOVO]
+        statusHandler(client);
         console.log("✅ Sistema de Status Rotativo ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Status:", err);
