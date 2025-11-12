@@ -1,50 +1,94 @@
-/* commands/ticket/ticketCloseHandler.js (V2 - HTML "Bonito") */
+/* commands/ticket/ticketCloseHandler.js (CORRIGIDO) */
 
-const { PermissionsBitField } = require('discord.js');
+const { AttachmentBuilder } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
+const fs = require('fs');
+const path = require('path');
 
-module.exports = async (interaction) => {
+// Carrega os dados do servidor (para o canal de logs)
+const serverDataPath = path.join(__dirname, '../adm/server_data.json');
+let serverData = {};
+try {
+    serverData = JSON.parse(fs.readFileSync(serverDataPath, 'utf8'));
+} catch (err) {
+    console.error("Erro ao carregar server_data.json no ticketCloseHandler:", err);
+}
+
+async function handleTicketClose(interaction) {
     const channel = interaction.channel;
-    if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-        return interaction.reply({
-            content: '❌ Apenas membros da Staff podem fechar o ticket usando o botão.',
-            ephemeral: true
-        });
+    if (!channel.name.startsWith('ticket-')) {
+        return interaction.reply({ content: '❌ Este não parece ser um canal de ticket válido.', ephemeral: true });
     }
-    const topic = channel.topic;
-    if (!topic) {
-        return interaction.reply({ content: '❌ Canal de ticket corrompido (sem tópico).', ephemeral: true });
-    }
-    const userIdMatch = topic.match(/ID: (\d+)/);
-    if (!userIdMatch) {
-        return interaction.reply({ content: '❌ Não foi possível identificar o criador deste ticket (ID não encontrado no tópico).', ephemeral: true });
-    }
-    const userId = userIdMatch[1];
-    await interaction.reply({ content: `🔒 Fechando ticket...\nSalvando transcrição em HTML e enviando para o usuário. O canal será deletado em 5 segundos.` });
 
+    // Tenta extrair o ID do usuário do tópico do canal
+    const topic = interaction.channel.topic;
+    const userIdMatch = topic ? topic.match(/ID: (\d+)/) : null;
+    const userId = userIdMatch ? userIdMatch[1] : null;
+
+    if (!userId) {
+        console.warn(`[AVISO] Ticket ${channel.name} fechado sem ID de usuário no tópico.`);
+    }
+
+    await interaction.reply({ content: `🔒 Fechando ticket...\nSalvando transcrição em HTML. O canal será deletado em 5 segundos.` });
+
+    // Renomeia o canal ANTES de salvar, para que o usuário veja a mudança
     try {
-        const attachment = await discordTranscripts.createTranscript(channel, {
+        await channel.setName(`🔒-fechado`);
+    } catch (renameErr) {
+        console.error("Não foi possível renomear o canal do ticket:", renameErr);
+    }
+
+    let attachment;
+    try {
+        // Gera a transcrição
+        attachment = await discordTranscripts.createTranscript(channel, {
             filename: `transcricao-${channel.name}.html`,
             saveImages: true,
             poweredBy: false
         });
-        const user = await interaction.client.users.fetch(userId);
-        if (user) {
+    } catch (transcriptErr) {
+        console.error("Erro ao criar a transcrição:", transcriptErr);
+        return interaction.editReply({ content: '❌ Ocorreu um erro ao salvar a transcrição. O canal não será deletado.' });
+    }
+
+    // Tenta enviar o DM para o usuário
+    if (userId) {
+        try {
+            const user = await interaction.client.users.fetch(userId);
             await user.send({
                 content: `Olá! A transcrição do seu ticket \`#${channel.name}\` no servidor **${interaction.guild.name}** está anexada.`,
                 files: [attachment]
-            }).catch(dmError => {
-                console.warn(`[AVISO] Não foi possível enviar o DM para ${user.tag}. O usuário pode ter DMs fechadas.`);
-                interaction.editReply(`🔒 Fechando ticket... Não foi possível enviar o DM para o usuário (DMs fechadas). O canal será deletado em 5 segundos.`);
             });
+        } catch (dmError) {
+            console.warn(`[AVISO] Não foi possível enviar o DM da transcrição para ${userId}.`);
+            await interaction.editReply(`🔒 Ticket fechado. Não foi possível enviar o DM para o usuário (DMs fechadas). O canal será deletado em 5 segundos.`);
         }
-        setTimeout(() => {
-            channel.delete().catch(err => {
-                console.error("Não foi possível deletar o canal do ticket:", err);
-            });
-        }, 5000);
-    } catch (err) {
-        console.error("Erro ao fechar ticket (Botão):", err);
-        await interaction.editReply({ content: '❌ Ocorreu um erro ao salvar a transcrição.' });
     }
-};
+
+    // Envia a transcrição para o canal de logs (se configurado)
+    const logChannelId = serverData[interaction.guild.id]?.logChannelId;
+    if (logChannelId && attachment) {
+        try {
+            const logChannel = await interaction.guild.channels.fetch(logChannelId);
+            if (logChannel) {
+                await logChannel.send({
+                    content: `Transcrição do ticket \`#${channel.name}\` (fechado por ${interaction.user.tag}).`,
+                    files: [attachment]
+                });
+            }
+        } catch (logErr) {
+            console.error("Não foi possível enviar a transcrição para o canal de logs:", logErr);
+        }
+    }
+
+    // Deleta o canal
+    setTimeout(() => {
+        channel.delete().catch(err => {
+            console.error("Não foi possível deletar o canal do ticket:", err);
+        });
+    }, 5000);
+}
+
+// [MUDANÇA PRINCIPAL AQUI]
+// Exporta a função diretamente, em vez de um objeto
+module.exports = handleTicketClose;
