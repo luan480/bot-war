@@ -1,41 +1,43 @@
-/* commands/adm/promotionHandler.js (Refatorado para Catch-Up) */
+/* commands/adm/promotionHandler.js (Refatorado V2 - Lógica Segura) */
 const fs = require('fs');
 const path = require('path');
-const { Events } = require('discord.js');
+const { Events, DiscordjsErrorCodes } = require('discord.js');
 
 // Caminhos para os JSONs
 const pontuacaoPath = path.join(__dirname, '../liga/pontuacao.json');
 const serverDataPath = path.join(__dirname, 'server_data.json');
 
 /**
- * Esta é a lógica central para processar um print.
- * Ela agora está separada para que possa ser usada em tempo real E no catch-up.
+ * Lógica central para processar um print.
  */
 async function processPrintMessage(message, printsChannelId, printsRoleId) {
     // Ignora bots e mensagens fora do canal de prints
     if (message.author.bot || message.channel.id !== printsChannelId) {
-        return;
+        return 'ignorado_bot_ou_canal';
     }
 
     try {
         // Verifica se a mensagem tem um anexo (print)
         if (message.attachments.size > 0) {
             const member = message.member || await message.guild.members.fetch(message.author.id);
-            if (!member) return;
+            if (!member) return 'ignorado_membro_nao_encontrado';
 
             // Verifica se o membro tem o cargo necessário
             if (member.roles.cache.has(printsRoleId)) {
                 
-                // --- IMPORTANTE: Verifica se o bot já reagiu com ✅ ---
-                // Se já reagiu, significa que esta mensagem já foi processada (no catch-up ou antes)
-                const hasBotReaction = message.reactions.cache.get('✅')?.me;
-                if (hasBotReaction) {
-                    return; 
+                // 1. TENTA REAGIR à mensagem para marcar como processada
+                try {
+                    await message.react('✅');
+                } catch (reactError) {
+                    // Se der erro, verifica se é porque o bot JÁ REAGIU
+                    if (reactError.code === DiscordjsErrorCodes.ReactionAlreadyAdded) {
+                        // O bot já processou esta mensagem. Ignora.
+                        return 'ignorado_ja_processado';
+                    }
+                    // Se for outro erro (Ex: mensagem apagada, sem permissão), regista e ignora.
+                    console.error(`[Promoção] Falha ao reagir na msg ${message.id}: ${reactError.message}`);
+                    return 'ignorado_erro_react';
                 }
-                // --- Fim da verificação ---
-
-                // 1. Reage à mensagem para marcar como processada
-                await message.react('✅');
 
                 // 2. Carrega a pontuação
                 let pontuacao = {};
@@ -46,17 +48,19 @@ async function processPrintMessage(message, printsChannelId, printsRoleId) {
                     // Continua mesmo se o ficheiro não existir, pois será criado
                 }
 
-                // 3. Adiciona o ponto
+                // 3. Adiciona o ponto (SÓ ADICIONA SE A REAÇÃO FOI BEM SUCEDIDA)
                 const userId = member.id;
                 pontuacao[userId] = (pontuacao[userId] || 0) + 1; // +1 ponto por print
 
                 // 4. Salva a pontuação
                 fs.writeFileSync(pontuacaoPath, JSON.stringify(pontuacao, null, 2));
                 console.log(`[Promoção] +1 ponto para ${member.user.tag} por print.`);
+                return 'processado_com_sucesso';
             }
         }
     } catch (err) {
         console.error(`Erro ao processar print [${message.url}]: ${err.message}`);
+        return 'ignorado_erro_geral';
     }
 }
 

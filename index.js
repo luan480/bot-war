@@ -1,4 +1,4 @@
-/* index.js (ATUALIZADO PARA 'CATCH-UP') */
+/* index.js (ATUALIZADO PARA 'CATCH-UP' V2) */
    
 require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
