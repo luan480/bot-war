@@ -2,7 +2,7 @@
    
 require('dotenv').config(); 
 // [NOVO] Adiciona a classe 'File' que está faltando para o 'undici'
-const { File } = require('undici');
+const { File } = require('undici'); 
 const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
