@@ -1,10 +1,8 @@
-/* ========================================================================
-   ARQUIVO index.js (COM CORREÇÃO DO ERRO DE SINTAXE 'name:Grave:')
-   
-   - Corrigido o erro de digitação na 'statusList' (Linha 75).
-   ======================================================================== */
+/* index.js (ATUALIZADO PARA CORRIGIR 'File is not defined') */
    
 require('dotenv').config(); 
+// [NOVO] Adiciona a classe 'File' que está faltando para o 'undici'
+const { File } = require('undici');
 const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
@@ -63,29 +61,17 @@ client.once(Events.ClientReady, async c => {
     
     // --- Sistema de Status Rotativo ---
     const statusList = [
-        { name: '🎮 War', type: ActivityType.Playing },
-        { name: '🏆 a Liga das Nações', type: ActivityType.Competing },
-        { name: '📺 o campo de batalha', type: ActivityType.Watching },
-        { name: '🎵 hinos de guerra', type: ActivityType.Listening },
-        { name: '🧠 planos de ataque', type: ActivityType.Playing },
-        { name: '📈 as vitórias da Liga', type: ActivityType.Watching },
-        { name: '🛡️ as patentes dos soldados', type: ActivityType.Watching },
-        { name: '📝 as regras do QG', type: ActivityType.Playing },
-        { name: '👀 o canal 📸・prints', type: ActivityType.Watching },
-        { name: '📨 tickets de suporte', type: ActivityType.Watching },
-        { name: '🧐 o Registro de Auditoria', type: ActivityType.Watching },
-        { name: '👻 caçando Ghost Pings', type: ActivityType.Playing },
-        { name: '👋 os novos Recrutas', type: ActivityType.Watching },
-        { name: '🗺️ o mapa-múndi', type: ActivityType.Playing },
-        { name: '🎖️ polindo as medalhas', type: ActivityType.Playing },
-        { name: '💤 descansando no quartel', type: ActivityType.Playing },
-        { name: '☕ um café com o General', type: ActivityType.Playing },
-        { name: '🎯 um objetivo secreto', type: ActivityType.Competing },
-        { name: '🎲 os dados de combate', type: ActivityType.Playing },
-        { name: '🚁 a Aeronáutica', type: ActivityType.Watching },
-        { name: '⚓ a Marinha', type: ActivityType.Watching },
-        { name: '🔰 o Exército', type: ActivityType.Watching },
-        // [CORREÇÃO AQUI] Removido o "Grave:" que estava sobrando
+        { name: '🎮 War', type: ActivityType.Playing }, { name: '🏆 a Liga das Nações', type: ActivityType.Competing },
+        { name: '📺 o campo de batalha', type: ActivityType.Watching }, { name: '🎵 hinos de guerra', type: ActivityType.Listening },
+        { name: '🧠 planos de ataque', type: ActivityType.Playing }, { name: '📈 as vitórias da Liga', type: ActivityType.Watching },
+        { name: '🛡️ as patentes dos soldados', type: ActivityType.Watching }, { name: '📝 as regras do QG', type: ActivityType.Playing },
+        { name: '👀 o canal 📸・prints', type: ActivityType.Watching }, { name: '📨 tickets de suporte', type: ActivityType.Watching },
+        { name: '🧐 o Registro de Auditoria', type: ActivityType.Watching }, { name: '👻 caçando Ghost Pings', type: ActivityType.Playing },
+        { name: '👋 os novos Recrutas', type: ActivityType.Watching }, { name: '🗺️ o mapa-múndi', type: ActivityType.Playing },
+        { name: '🎖️ polindo as medalhas', type: ActivityType.Playing }, { name: '💤 descansando no quartel', type: ActivityType.Playing },
+        { name: '☕ um café com o General', type: ActivityType.Playing }, { name: '🎯 um objetivo secreto', type: ActivityType.Competing },
+        { name: '🎲 os dados de combate', type: ActivityType.Playing }, { name: '🚁 a Aeronáutica', type: ActivityType.Watching },
+        { name: '⚓ a Marinha', type: ActivityType.Watching }, { name: '🔰 o Exército', type: ActivityType.Watching },
         { name: '⚔️ os Mercenários', type: ActivityType.Watching }, { name: '📜 os guias de estratégia', type: ActivityType.Watching },
         { name: '📣 um /anuncio', type: ActivityType.Playing }, { name: '🔨 banindo cheaters', type: ActivityType.Playing },
         { name: '📁 organizando os logs', type: ActivityType.Watching }, { name: '🧑‍✈️ o Almirante', type: ActivityType.Listening },

@@ -1,10 +1,8 @@
 /* ========================================================================
-   ARQUIVO: commands/adm/carreira.js (VERSÃO ADMIN)
+   ARQUIVO: commands/adm/carreira.js (CORRIGIDO)
    
-   - Adiciona comandos de admin:
-     /carreira setar-vitorias
-     /carreira adicionar-vitorias
-     /carreira resetar
+   - [CORREÇÃO] Movido o 'setDefaultMemberPermissions' para o
+     comando principal, consertando o crash 'is not a function'.
    ======================================================================== */
 
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
@@ -14,53 +12,35 @@ const { safeReadJson, safeWriteJson } = require('../liga/utils/helpers.js');
 const carreirasPath = path.join(__dirname, 'carreiras.json');
 const progressaoPath = path.join(__dirname, 'progressao.json');
 
-
-/**
- * Função auxiliar para recalcular e aplicar o cargo de um membro com base em suas vitórias.
- * @param {import('discord.js').GuildMember} member - O membro do servidor.
- * @param {object} faccao - O objeto da facção do carreiras.json.
- * @param {object} userProgress - O objeto de progresso do progressao.json.
- * @param {string} cargoRecrutaId - O ID do cargo de Recruta.
- */
+// (A função 'recalcularRank' é a mesma, sem mudanças)
 async function recalcularRank(member, faccao, userProgress, cargoRecrutaId) {
     const totalWins = userProgress.totalWins;
-    let novoCargo = null; // O cargo mais alto que ele merece
-
-    // Loop do mais alto para o mais baixo
+    let novoCargo = null;
     for (let i = faccao.caminho.length - 1; i >= 0; i--) {
         const rank = faccao.caminho[i];
         if (totalWins >= rank.custo) {
             novoCargo = rank;
-            break; // Achamos o cargo mais alto
+            break;
         }
     }
-
     const cargoAtualId = userProgress.currentRankId;
-
     if (novoCargo && cargoAtualId === novoCargo.id) {
-        return; // Já está com o cargo correto
+        return;
     }
-
-    // Se ele não merece nenhum cargo (ex: 0 vitórias) e já tem um, remove.
     if (!novoCargo && cargoAtualId) {
         await member.roles.remove(cargoAtualId);
         userProgress.currentRankId = null;
         return;
     }
-    
-    // Se ele merece um novo cargo
     if (novoCargo) {
         const cargosParaRemover = [cargoRecrutaId];
-        // Remove todos os outros cargos da facção (para o caso de um rebaixamento)
         for (const rank of faccao.caminho) {
-            if (rank.id !== novoCargo.id) { // Não remove o cargo que ele vai ganhar
+            if (rank.id !== novoCargo.id) {
                 cargosParaRemover.push(rank.id);
             }
         }
-        
         await member.roles.remove(cargosParaRemover.filter(id => id && member.roles.cache.has(id)));
         await member.roles.add(novoCargo.id);
-        
         userProgress.currentRankId = novoCargo.id;
     }
 }
@@ -71,6 +51,8 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('carreira')
         .setDescription('Comandos do sistema de progressão de carreira.')
+        // [CORREÇÃO AQUI] A permissão de admin vai aqui, no comando principal
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) 
         
         // --- COMANDO PÚBLICO ---
         .addSubcommand(subcommand =>
@@ -84,7 +66,7 @@ module.exports = {
             subcommand
                 .setName('setar-vitorias')
                 .setDescription('[ADMIN] Define o total de vitórias de um jogador e corrige sua patente.')
-                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+                // A permissão foi removida daqui
                 .addUserOption(option => option.setName('usuario').setDescription('O membro que você quer modificar.').setRequired(true))
                 .addIntegerOption(option => option.setName('quantidade').setDescription('O número total de vitórias.').setRequired(true).setMinValue(0))
         )
@@ -92,7 +74,7 @@ module.exports = {
             subcommand
                 .setName('adicionar-vitorias')
                 .setDescription('[ADMIN] Adiciona vitórias (bônus) a um jogador e o promove se necessário.')
-                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+                // A permissão foi removida daqui
                 .addUserOption(option => option.setName('usuario').setDescription('O membro que você quer modificar.').setRequired(true))
                 .addIntegerOption(option => option.setName('quantidade').setDescription('O número de vitórias para adicionar.').setRequired(true))
         )
@@ -100,18 +82,17 @@ module.exports = {
             subcommand
                 .setName('resetar')
                 .setDescription('[ADMIN] Zera o progresso (vitórias e patente) de um jogador.')
-                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+                // A permissão foi removida daqui
                 .addUserOption(option => option.setName('usuario').setDescription('O membro que você quer resetar.').setRequired(true))
         ),
     
     // 2. Lógica de Execução
     async execute(interaction) {
-        
+        // (O resto do código 'execute' é o mesmo, sem mudanças)
         const subcommand = interaction.options.getSubcommand();
         const carreirasConfig = safeReadJson(carreirasPath);
         const progressao = safeReadJson(progressaoPath);
 
-        // --- LÓGICA DO /carreira status (Público) ---
         if (subcommand === 'status') {
             await interaction.deferReply({ ephemeral: true });
             const userId = interaction.user.id;
@@ -158,10 +139,6 @@ module.exports = {
             await interaction.editReply({ content: `✅ Seu status foi postado com sucesso no canal ${canalDeAnuncio}!`, ephemeral: true });
             return;
         }
-
-        /* ==================================================================
-           LÓGICA DOS COMANDOS DE ADMIN
-           ================================================================== */
         
         await interaction.deferReply({ ephemeral: true });
         const targetUser = interaction.options.getUser('usuario');
@@ -174,33 +151,21 @@ module.exports = {
         
         const userId = targetUser.id;
         
-        // --- LÓGICA /carreira resetar ---
         if (subcommand === 'resetar') {
             if (!progressao[userId]) {
                 return interaction.editReply({ content: 'ℹ️ Este usuário não possui nenhum progresso para resetar.' });
             }
-            
             const faccaoId = progressao[userId].factionId;
             const faccao = carreirasConfig.faccoes[faccaoId];
-            
-            // Remove todas as patentes da facção
             const cargosParaRemover = faccao.caminho.map(rank => rank.id);
             await targetMember.roles.remove(cargosParaRemover.filter(id => id && targetMember.roles.cache.has(id)));
-            
-            // Adiciona o cargo Recruta de volta
             await targetMember.roles.add(carreirasConfig.cargoRecrutaId);
-            
-            // Deleta o registro do usuário
             delete progressao[userId];
             safeWriteJson(progressaoPath, progressao);
-            
             return interaction.editReply({ content: `✅ Sucesso! O progresso de ${targetUser} foi resetado. Ele foi movido de volta para Recruta.` });
         }
 
-        // --- LÓGICA /carreira setar-vitorias e adicionar-vitorias ---
         if (subcommand === 'setar-vitorias' || subcommand === 'adicionar-vitorias') {
-            
-            // Verifica se o usuário tem um registro. Se não, cria um.
             if (!progressao[userId]) {
                 let faccaoId = null;
                 for (const id of Object.keys(carreirasConfig.faccoes)) {
@@ -214,11 +179,9 @@ module.exports = {
                 }
                 progressao[userId] = { factionId: faccaoId, currentRankId: null, totalWins: 0 };
             }
-
             const userProgress = progressao[userId];
             const faccao = carreirasConfig.faccoes[userProgress.factionId];
             let newTotalWins = 0;
-
             if (subcommand === 'setar-vitorias') {
                 newTotalWins = quantidade;
                 userProgress.totalWins = newTotalWins;
@@ -226,15 +189,10 @@ module.exports = {
                 newTotalWins = userProgress.totalWins + quantidade;
                 userProgress.totalWins = newTotalWins;
             }
-
-            // Recalcula o rank
             await recalcularRank(targetMember, faccao, userProgress, carreirasConfig.cargoRecrutaId);
-            
-            // Salva as mudanças
             safeWriteJson(progressaoPath, progressao);
-
             const newRank = userProgress.currentRankId ? faccao.caminho.find(r => r.id === userProgress.currentRankId).nome : "Recruta";
             return interaction.editReply({ content: `✅ Sucesso! O total de vitórias de ${targetUser} foi definido para **${newTotalWins}**. Sua patente foi corrigida para **${newRank}**.` });
         }
     }
-}
+};
