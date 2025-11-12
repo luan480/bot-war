@@ -1,18 +1,18 @@
 /* ========================================================================
-   ARQUIVO index.js (COM CORREÇÃO DO 'BitFieldInvalid')
+   ARQUIVO index.js (COM CORREÇÃO DO 'ActivityType')
    
-   - Corrigido o erro de 'Intent' inválido.
-   - 'GuildAuditLogs' (que não existe) foi trocado por
-     'GuildModeration' (que é o correto).
+   - Corrigido o erro 'Cannot read properties of undefined (reading 'Watching')'.
+   - 1. 'ActivityType' foi adicionado à importação do 'discord.js'.
+   - 2. O 'setActivity' foi corrigido para usar 'ActivityType' em vez de 'Events.ActivityType'.
    ======================================================================== */
    
 require('dotenv').config(); 
-const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
+// [CORREÇÃO 1 AQUI] Adiciona ActivityType
+const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
 
 const client = new Client({
-    // --- [CORREÇÃO AQUI] ---
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
@@ -20,7 +20,7 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildBans, 
         GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildModeration // <-- Este é o nome correto
+        GatewayIntentBits.GuildModeration
     ],
 });
 
@@ -62,7 +62,9 @@ const welcomeHandler = require('./commands/adm/welcomeHandler.js');
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
-    c.user.setActivity('o campo de batalha', { type: Events.ActivityType.Watching }); // Corrigido para Events.ActivityType
+    
+    // [CORREÇÃO 2 AQUI] Remove o 'Events.'
+    c.user.setActivity('o campo de batalha', { type: ActivityType.Watching }); 
 
     // --- Ativa os Vigias ---
     try {
@@ -87,7 +89,7 @@ client.once(Events.ClientReady, async c => {
 
 // --- Evento de Interação ---
 client.on(Events.InteractionCreate, async interaction => {
-    // --- Roteador de Comandos ---
+    // (O seu roteador de comandos e botões continua o mesmo)
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -107,7 +109,6 @@ client.on(Events.InteractionCreate, async interaction => {
             }
         }
     }
-    // --- Roteador de Botões ---
     if (interaction.isButton()) {
         try {
             if (interaction.customId.startsWith('iniciar_') || 
