@@ -1,4 +1,4 @@
-/* index.js (ATUALIZADO PARA INICIAR O VIGIA DE BOAS-VINDAS) */
+/* index.js (ATUALIZADO COM INTENT DE AUDITORIA) */
    
 require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
@@ -12,7 +12,8 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildBans, 
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildAuditLogs // [NOVO] Para ler o Registro de Auditoria
     ],
 });
 
@@ -48,30 +49,24 @@ const carreiraButtonHandler = require('./commands/adm/carreiraButtonHandler.js')
 const promotionVigia = require('./commands/adm/promotionHandler.js');
 const ticketOpenHandler = require('./commands/ticket/ticketOpenHandler.js');
 const ticketCloseHandler = require('./commands/ticket/ticketCloseHandler.js');
-const logHandler = require('./commands/adm/logHandler.js');
-const welcomeHandler = require('./commands/adm/welcomeHandler.js'); // [NOVO]
+const logHandler = require('./commands/adm/logHandler.js'); 
+const welcomeHandler = require('./commands/adm/welcomeHandler.js');
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
-    
-    // Ativa o Vigia de Promoção
     try {
         promotionVigia(client); 
         console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Promoção:", err);
     }
-    
-    // Ativa o Vigia de Logs
     try {
         logHandler(client); 
         console.log("✅ Sistema de Logs (Poderoso) ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Logs:", err);
     }
-
-    // [NOVO] Ativa o Vigia de Boas-Vindas
     try {
         welcomeHandler(client); 
         console.log("✅ Sistema de Boas-Vindas ativado.");
