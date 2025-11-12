@@ -1,5 +1,7 @@
 /* ========================================================================
-   ARQUIVO: commands/adm/logHandler.js (V6 - CORRIGE O CRASH)
+   ARQUIVO: commands/adm/logHandler.js (V7 - COMPLETO)
+   
+   - Adiciona log de Silenciamento (Timeout).
    ======================================================================== */
    
 const { Events, EmbedBuilder, AuditLogEvent, ChannelType } = require('discord.js');
@@ -10,6 +12,7 @@ const logConfigPath = path.join(__dirname, 'log_config.json');
 
 module.exports = (client) => {
 
+    // Função para buscar o canal de log
     async function getLogChannel() {
         const config = safeReadJson(logConfigPath);
         if (!config.logChannelId) return null;
@@ -21,7 +24,9 @@ module.exports = (client) => {
         if (!message.guild || message.author?.bot) return;
         const logChannel = await getLogChannel();
         if (!logChannel) return;
+        
         try {
+            // ESPELHO (Ghost Ping)
             if (message.mentions.users.size > 0) {
                 const mentionedUser = message.mentions.users.first();
                 if (mentionedUser.id !== message.author.id) {
@@ -42,6 +47,7 @@ module.exports = (client) => {
         if (!newMessage.guild || newMessage.author?.bot || oldMessage.content === newMessage.content) return;
         const logChannel = await getLogChannel();
         if (!logChannel) return;
+
         const embed = new EmbedBuilder()
             .setColor('Yellow').setTitle('Mensagem Editada')
             .setDescription(`**Autor:** ${newMessage.author.tag} (${newMessage.author.id})\n**Canal:** ${newMessage.channel}\n[Ir para a Mensagem](${newMessage.url})`)
@@ -50,10 +56,12 @@ module.exports = (client) => {
                 { name: 'Conteúdo Novo', value: `\`\`\`${newMessage.content.slice(0, 1000) || '[N/A]'}\`\`\`` }
             )
             .setThumbnail(newMessage.author.displayAvatarURL()).setTimestamp();
-        try { await logChannel.send({ embeds: [embed] }); } catch (err) { console.error("Erro no log MessageUpdate:", err); }
+        try {
+            await logChannel.send({ embeds: [embed] });
+        } catch (err) { console.error("Erro no log MessageUpdate:", err); }
     });
     
-    // --- LOGS DE MEMBROS (ENTRADA, CARGOS, APELIDOS) ---
+    // --- LOGS DE MEMBROS (ENTRADA) ---
     client.on(Events.GuildMemberAdd, async (member) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
@@ -64,9 +72,12 @@ module.exports = (client) => {
         await logChannel.send({ embeds: [embed] });
     });
 
+    // --- LOGS DE ATUALIZAÇÃO DE MEMBRO (CARGOS, APELIDOS E SILENCIAMENTO) ---
     client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
+
+        // 1. MUDANÇA DE APELIDO
         if (oldMember.nickname !== newMember.nickname) {
             const embed = new EmbedBuilder()
                 .setColor('Blue').setTitle('Mudança de Apelido')
@@ -78,6 +89,8 @@ module.exports = (client) => {
                 .setThumbnail(newMember.user.displayAvatarURL()).setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
+
+        // 2. MUDANÇA DE CARGOS
         const oldRoles = oldMember.roles.cache;
         const newRoles = newMember.roles.cache;
         if (oldRoles.size !== newRoles.size) {
@@ -86,6 +99,7 @@ module.exports = (client) => {
                 .setDescription(`**Membro:** ${newMember.user} (${newMember.user.tag})`);
             const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberRoleUpdate }).catch(() => null);
             const roleLog = fetchedLogs?.entries.first();
+            
             if (roleLog && roleLog.target.id === newMember.id && roleLog.createdAt > (Date.now() - 5000)) {
                 embed.addFields({ name: 'Alterado por', value: `${roleLog.executor}` });
             } else {
@@ -99,6 +113,47 @@ module.exports = (client) => {
             if (removedRoles.size > 0) {
                 embed.addFields({ name: 'Cargos Removidos', value: removedRoles.map(r => r.name).join(', ') });
             }
+            await logChannel.send({ embeds: [embed] });
+        }
+
+        // 3. [NOVO] LOG DE SILENCIAMENTO (TIMEOUT)
+        if (oldMember.communicationDisabledUntil !== newMember.communicationDisabledUntil) {
+            const embed = new EmbedBuilder()
+                .setThumbnail(newMember.user.displayAvatarURL())
+                .setTimestamp();
+            
+            let executor = "Não detectado";
+            
+            // Pega o Audit Log para ver QUEM silenciou
+            const fetchedLogs = await newMember.guild.fetchAuditLogs({
+                limit: 1,
+                type: AuditLogEvent.MemberUpdate, // Timeout é uma 'Atualização de Membro'
+            }).catch(() => null);
+            
+            const timeoutLog = fetchedLogs?.entries.first();
+            
+            if (timeoutLog && timeoutLog.target.id === newMember.id && timeoutLog.createdAt > (Date.now() - 5000)) {
+                const change = timeoutLog.changes.find(c => c.key === 'communication_disabled_until');
+                if (change) {
+                    executor = timeoutLog.executor;
+                }
+            }
+
+            // Se o membro FOI silenciado
+            if (newMember.communicationDisabledUntil) {
+                const timestamp = Math.floor(newMember.communicationDisabledUntilTimestamp / 1000);
+                embed.setColor('Purple') // Roxo para timeout
+                     .setTitle('Membro Silenciado (Timeout)')
+                     .setDescription(`**Membro:** ${newMember.user} (${newMember.user.tag})\n**Silenciado por:** ${executor}`)
+                     .addFields({ name: 'Expira em', value: `<t:${timestamp}:f>` });
+            } 
+            // Se o timeout foi REMOVIDO
+            else {
+                embed.setColor('Green')
+                     .setTitle('Silenciamento Removido')
+                     .setDescription(`**Membro:** ${newMember.user} (${newMember.user.tag})\n**Timeout removido por:** ${executor}`);
+            }
+            
             await logChannel.send({ embeds: [embed] });
         }
     });
@@ -193,7 +248,7 @@ module.exports = (client) => {
         }
     });
 
-    // --- [CORREÇÃO AQUI] OUVINTE DE MEMBRO SAIU (A LÓGICA CORRIGIDA) ---
+    // --- OUVINTE DE MEMBRO SAIU (A LÓGICA CORRIGIDA) ---
     client.on(Events.GuildMemberRemove, async (member) => {
         const logChannel = await getLogChannel();
         if (!logChannel) return;
@@ -203,19 +258,15 @@ module.exports = (client) => {
         const fetchedKick = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick }).catch(() => null);
         const kickLog = fetchedKick?.entries.first();
         
-        // [VERIFICAÇÃO DE SEGURANÇA] Verifica se kickLog e kickLog.target existem
         if (kickLog && kickLog.target && kickLog.target.id === member.id && kickLog.createdAt > (Date.now() - 5000)) {
-            // Se foi Kick, o Audit Log já cuidou disso.
-            return;
+            return; // O Audit Log de Kick já cuidou disso
         }
         
         const fetchedBan = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberBanAdd }).catch(() => null);
         const banLog = fetchedBan?.entries.first();
         
-        // [VERIFICAÇÃO DE SEGURANÇA] Verifica se banLog e banLog.target existem
         if (banLog && banLog.target && banLog.target.id === member.id && banLog.createdAt > (Date.now() - 5000)) {
-            // Se foi Ban, o Audit Log já cuidou disso.
-            return;
+            return; // O Audit Log de Ban já cuidou disso
         }
 
         // Se não foi Kick nem Ban, ele "Saiu"
