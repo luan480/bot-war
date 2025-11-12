@@ -1,6 +1,7 @@
-/* commands/ticket/ticketCloseHandler.js (CORRIGIDO) */
+/* commands/ticket/ticketCloseHandler.js (V2 - COM EMBED BONITO) */
 
-const { AttachmentBuilder } = require('discord.js');
+// [MUDANÇA] Adicionamos EmbedBuilder e Colors
+const { AttachmentBuilder, EmbedBuilder, Colors } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
 const fs = require('fs');
 const path = require('path');
@@ -55,10 +56,28 @@ async function handleTicketClose(interaction) {
     if (userId) {
         try {
             const user = await interaction.client.users.fetch(userId);
+
+            // --- ✨ DM COM EMBED BONITO ---
+            const embedDM = new EmbedBuilder()
+                .setColor(Colors.Blue) // Cor azul informativa
+                .setTitle('✅ Ticket Fechado')
+                .setDescription(`Olá! Seu ticket no servidor **${interaction.guild.name}** foi fechado.\n\nEstamos enviando a transcrição completa da conversa em anexo para sua referência.`)
+                .addFields(
+                    { name: 'Servidor', value: interaction.guild.name, inline: true },
+                    { name: 'Ticket', value: `\`#${channel.name}\``, inline: true }
+                )
+                .setFooter({
+                    text: `Bot ${interaction.client.user.username}`,
+                    iconURL: interaction.client.user.displayAvatarURL()
+                })
+                .setTimestamp();
+
             await user.send({
-                content: `Olá! A transcrição do seu ticket \`#${channel.name}\` no servidor **${interaction.guild.name}** está anexada.`,
+                embeds: [embedDM], // Usa 'embeds' em vez de 'content'
                 files: [attachment]
             });
+            // --- FIM DA MUDANÇA ---
+
         } catch (dmError) {
             console.warn(`[AVISO] Não foi possível enviar o DM da transcrição para ${userId}.`);
             await interaction.editReply(`🔒 Ticket fechado. Não foi possível enviar o DM para o usuário (DMs fechadas). O canal será deletado em 5 segundos.`);
@@ -89,6 +108,5 @@ async function handleTicketClose(interaction) {
     }, 5000);
 }
 
-// [MUDANÇA PRINCIPAL AQUI]
-// Exporta a função diretamente, em vez de um objeto
+// Exporta a função diretamente
 module.exports = handleTicketClose;

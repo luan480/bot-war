@@ -1,10 +1,15 @@
-# Ignora o arquivo de segredos
-.env
+# Dependências
+node_modules
 
-# Ignora a pasta de pacotes (o DisCloud instala a dele)
-node_modules/
-
-# Ignora os logs de NPM
+# Ficheiros de Log
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Ficheiro de Ambiente (MUITO IMPORTANTE)
+.env
+
+# Outros
+.DS_Store
+package-lock.json
