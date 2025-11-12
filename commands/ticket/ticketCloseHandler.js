@@ -1,35 +1,19 @@
-/* commands/ticket/ticketCloseHandler.js (ATUALIZADO COM TRANSCRIÇÃO) */
+/* ========================================================================
+   ARQUIVO: commands/ticket/ticketCloseHandler.js (V2 - HTML)
+   
+   - [MUDANÇA] Adiciona o pacote 'discord-html-transcripts'.
+   - Agora envia um arquivo .html bonito.
+   ======================================================================== */
 
-const { PermissionsBitField, AttachmentBuilder } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
+// [NOVO] Importa a nova biblioteca
+const discordTranscripts = require('discord-html-transcripts');
 
-/**
- * Coleta as mensagens do canal e formata em texto.
- * @param {import('discord.js').TextChannel} channel
- * @returns {Promise<string>} A transcrição formatada.
- */
-async function createTranscript(channel) {
-    let transcript = `Transcrição do Ticket #${channel.name}\n\n`;
-    const messages = await channel.messages.fetch({ limit: 100 });
-    const sortedMessages = [...messages.values()].reverse();
-
-    for (const msg of sortedMessages) {
-        const timestamp = msg.createdAt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-        transcript += `[${timestamp}] ${msg.author.tag}:\n`;
-        if (msg.content) {
-            transcript += `${msg.content}\n`;
-        }
-        if (msg.attachments.size > 0) {
-            transcript += `[Anexo: ${msg.attachments.first().url}]\n`;
-        }
-        transcript += `\n`;
-    }
-    return transcript;
-}
 
 module.exports = async (interaction) => {
     const channel = interaction.channel;
 
-    // 1. Verifica se é Staff (só Staff pode usar o botão de fechar)
+    // 1. Verifica se é Staff
     if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
         return interaction.reply({
             content: '❌ Apenas membros da Staff podem fechar o ticket usando o botão.',
@@ -53,14 +37,15 @@ module.exports = async (interaction) => {
 
     const userId = userIdMatch[1];
     await interaction.reply({ 
-        content: `🔒 Fechando ticket...\nSalvando transcrição e enviando para o usuário (ID: ${userId}). O canal será deletado em 5 segundos.` 
+        content: `🔒 Fechando ticket...\nSalvando transcrição em HTML e enviando para o usuário. O canal será deletado em 5 segundos.` 
     });
 
     try {
-        // 3. Cria a transcrição
-        const transcriptText = await createTranscript(channel);
-        const transcriptFile = new AttachmentBuilder(Buffer.from(transcriptText, 'utf-8'), {
-            name: `transcricao-${channel.name}.txt`
+        // [NOVO] Cria a transcrição em HTML
+        const attachment = await discordTranscripts.createTranscript(channel, {
+            filename: `transcricao-${channel.name}.html`,
+            saveImages: true,
+            poweredBy: false
         });
 
         // 4. Envia o DM para o usuário
@@ -68,7 +53,7 @@ module.exports = async (interaction) => {
         if (user) {
             await user.send({
                 content: `Olá! A transcrição do seu ticket \`#${channel.name}\` no servidor **${interaction.guild.name}** está anexada.`,
-                files: [transcriptFile]
+                files: [attachment] // Envia o arquivo HTML
             }).catch(dmError => {
                 console.warn(`[AVISO] Não foi possível enviar o DM para ${user.tag}. O usuário pode ter DMs fechadas.`);
                 interaction.editReply(`🔒 Fechando ticket... Não foi possível enviar o DM para o usuário (DMs fechadas). O canal será deletado em 5 segundos.`);

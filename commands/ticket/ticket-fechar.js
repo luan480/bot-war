@@ -1,45 +1,24 @@
-/* commands/ticket/ticket-fechar.js (ATUALIZADO COM TRANSCRIÇÃO) */
+/* ========================================================================
+   ARQUIVO: commands/ticket/ticket-fechar.js (V2 - HTML)
+   
+   - [MUDANÇA] Remove a função 'createTranscript' manual.
+   - [MUDANÇA] Adiciona o pacote 'discord-html-transcripts'.
+   - Agora envia um arquivo .html bonito.
+   ======================================================================== */
 
 const { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder } = require('discord.js');
-
-/**
- * Coleta as mensagens do canal e formata em texto.
- * @param {import('discord.js').TextChannel} channel
- * @returns {Promise<string>} A transcrição formatada.
- */
-async function createTranscript(channel) {
-    let transcript = `Transcrição do Ticket #${channel.name}\n\n`;
-    
-    // Pega as últimas 100 mensagens (limite do Discord por fetch)
-    const messages = await channel.messages.fetch({ limit: 100 });
-    
-    // Inverte as mensagens para ficarem na ordem cronológica (da mais antiga para a mais nova)
-    const sortedMessages = [...messages.values()].reverse();
-
-    for (const msg of sortedMessages) {
-        const timestamp = msg.createdAt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-        transcript += `[${timestamp}] ${msg.author.tag}:\n`;
-        if (msg.content) {
-            transcript += `${msg.content}\n`;
-        }
-        if (msg.attachments.size > 0) {
-            transcript += `[Anexo: ${msg.attachments.first().url}]\n`;
-        }
-        transcript += `\n`;
-    }
-    return transcript;
-}
+// [NOVO] Importa a nova biblioteca
+const discordTranscripts = require('discord-html-transcripts');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('fechar-ticket')
         .setDescription('Fecha o canal de ticket atual e envia a transcrição para o DM do usuário.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels), // Só Staff pode usar
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels), // Só Staff
     
     async execute(interaction) {
         const channel = interaction.channel;
 
-        // 1. Verifica se está em um canal de ticket
         if (!channel.name.startsWith('ticket-') || !channel.topic) {
             return interaction.reply({ 
                 content: '❌ Este não parece ser um canal de ticket válido.', 
@@ -47,9 +26,8 @@ module.exports = {
             });
         }
 
-        // 2. Pega o ID do usuário do Tópico
         const topic = channel.topic;
-        const userIdMatch = topic.match(/ID: (\d+)/); // Pega o número depois de "ID: "
+        const userIdMatch = topic.match(/ID: (\d+)/);
 
         if (!userIdMatch) {
             return interaction.reply({ 
@@ -60,14 +38,15 @@ module.exports = {
 
         const userId = userIdMatch[1];
         await interaction.reply({ 
-            content: `🔒 Fechando ticket...\nSalvando transcrição e enviando para o usuário (ID: ${userId}). O canal será deletado em 5 segundos.` 
+            content: `🔒 Fechando ticket...\nSalvando transcrição em HTML e enviando para o usuário. O canal será deletado em 5 segundos.` 
         });
 
         try {
-            // 3. Cria a transcrição
-            const transcriptText = await createTranscript(channel);
-            const transcriptFile = new AttachmentBuilder(Buffer.from(transcriptText, 'utf-8'), {
-                name: `transcricao-${channel.name}.txt`
+            // [NOVO] Cria a transcrição em HTML
+            const attachment = await discordTranscripts.createTranscript(channel, {
+                filename: `transcricao-${channel.name}.html`, // Nome do arquivo
+                saveImages: true, // Salva as imagens (bom para prints de denúncia)
+                poweredBy: false // Remove o "powered by"
             });
 
             // 4. Envia o DM para o usuário
@@ -75,10 +54,9 @@ module.exports = {
             if (user) {
                 await user.send({
                     content: `Olá! A transcrição do seu ticket \`#${channel.name}\` no servidor **${interaction.guild.name}** está anexada.`,
-                    files: [transcriptFile]
+                    files: [attachment] // Envia o arquivo HTML
                 }).catch(dmError => {
                     console.warn(`[AVISO] Não foi possível enviar o DM para ${user.tag}. O usuário pode ter DMs fechadas.`);
-                    // Se o DM falhar, o bot avisa no canal antes de deletar
                     interaction.editReply(`🔒 Fechando ticket... Não foi possível enviar o DM para o usuário (DMs fechadas). O canal será deletado em 5 segundos.`);
                 });
             }

@@ -50,7 +50,7 @@ module.exports = {
                     name: '2. O Campo de Batalha (Como Jogar)',
                     value: (
                         '• **Regras da Liga:** A Liga das Nações tem regras especiais. Leia-as em <#881960444070350919>.\n' +
-                        '• **Guias de Estratégia:** Aprenda a jogar e táticas avançadas no canal <#10679472192165186>.'
+                        '• **Guias de Estratégia:** Aprenda a jogar e táticas avançadas no canal <#1083224204306038815>.'
                     )
                 },
                 {
