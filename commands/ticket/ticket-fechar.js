@@ -1,5 +1,5 @@
 /* ========================================================================
-   ARQUIVO: commands/ticket/ticket-fechar.js (V2 - HTML)
+   ARQUIVO: commands/ticket/ticket-fechar.js (V2 - HTML "Bonito")
    
    - [MUDANÇA] Remove a função 'createTranscript' manual.
    - [MUDANÇA] Adiciona o pacote 'discord-html-transcripts'.

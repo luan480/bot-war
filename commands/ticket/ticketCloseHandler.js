@@ -1,5 +1,5 @@
 /* ========================================================================
-   ARQUIVO: commands/ticket/ticketCloseHandler.js (V2 - HTML)
+   ARQUIVO: commands/ticket/ticketCloseHandler.js (V2 - HTML "Bonito")
    
    - [MUDANÇA] Adiciona o pacote 'discord-html-transcripts'.
    - Agora envia um arquivo .html bonito.
