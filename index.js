@@ -1,10 +1,9 @@
-/* index.js (CORRIGIDO) */
+/* index.js (ATUALIZADO PARA 'CATCH-UP') */
    
 require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
-// [REMOVIDO] A linha 'const { File } = require('node:buffer');' foi removida.
 
 const client = new Client({
     intents: [
@@ -30,8 +29,9 @@ for (const folder of commandFolders) {
     for (const file of commandFiles) {
         const filePath = path.join(folderPath, file);
         try {
-            if (file.endsWith('Handler.js')) {
-                console.log(`[INFO] Módulo handler encontrado: ${file}`);
+            // Ignora ficheiros de 'handler' para não carregar como comando
+            if (file.endsWith('Handler.js') || file === 'buttons.js' || file === 'helpers.js') {
+                console.log(`[INFO] Módulo/Handler ignorado no carregador: ${file}`);
                 continue; 
             }
             const command = require(filePath);
@@ -39,7 +39,7 @@ for (const folder of commandFolders) {
                 client.commands.set(command.data.name, command);
             }
         } catch (err) {
-            console.error(`[AVISO] Não foi possível carregar o arquivo ${filePath}: ${err.message}`);
+            console.error(`[AVISO] Não foi possível carregar o comando ${filePath}: ${err.message}`);
         }
     }
 }
@@ -54,6 +54,9 @@ const logHandler = require('./commands/adm/logHandler.js');
 const welcomeHandler = require('./commands/adm/welcomeHandler.js');
 const autoResponderHandler = require('./commands/adm/autoResponderHandler.js'); 
 const statusHandler = require('./commands/adm/statusHandler.js');
+// [NOVO] Adiciona o handler de catch-up
+const catchUpPrintsHandler = require('./commands/adm/catchUpPrintsHandler.js');
+
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
@@ -90,11 +93,20 @@ client.once(Events.ClientReady, async c => {
     } catch (err) {
         console.error("❌ Falha ao ativar o Auto-Responder:", err);
     }
+
+    // [NOVO] Ativa o sistema de verificação de prints perdidos DEPOIS de tudo
+    try {
+        // Usamos 'await' para garantir que ele termina a verificação antes de continuar
+        await catchUpPrintsHandler(client); 
+        console.log("✅ Sistema de 'Catch-Up' (prints perdidos) ativado.");
+    } catch (err) {
+        console.error("❌ Falha ao ativar o Sistema de 'Catch-Up':", err);
+    }
 });
 
 // --- Evento de Interação ---
 client.on(Events.InteractionCreate, async interaction => {
-    // (O seu roteador de comandos e botões continua o mesmo)
+    
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -105,15 +117,16 @@ client.on(Events.InteractionCreate, async interaction => {
             try {
                 const errorMessage = `❌ **Erro Crítico!** Ocorreu um problema:\n\n\`\`\`${err.message}\`\`\``;
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: errorMessage, flags: 64 });
+                    await interaction.followUp({ content: errorMessage, ephemeral: true });
                 } else {
-                    await interaction.reply({ content: errorMessage, flags: 64 });
+                    await interaction.reply({ content: errorMessage, ephemeral: true });
                 }
             } catch (catchErr) {
                 console.error("[ERRO NO CATCH] Não foi possível responder à interação que falhou:", catchErr.message);
             }
         }
     }
+    
     if (interaction.isButton()) {
         try {
             if (interaction.customId.startsWith('iniciar_') || 
@@ -140,9 +153,9 @@ client.on(Events.InteractionCreate, async interaction => {
             console.error(`Erro no handler de botão (${interaction.customId}):`, err);
             try {
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '❌ Ocorreu um erro ao usar este botão.', flags: 64 });
+                    await interaction.reply({ content: '❌ Ocorreu um erro ao usar este botão.', ephemeral: true });
                 } else {
-                    await interaction.followUp({ content: '❌ Ocorreu um erro ao usar este botão.', flags: 64 });
+                    await interaction.followUp({ content: '❌ Ocorreu um erro ao usar este botão.', ephemeral: true });
                 }
             } catch (catchErr) {
                 console.error("[ERRO NO CATCH] Não foi possível responder ao botão que falhou:", catchErr.message);
@@ -153,5 +166,3 @@ client.on(Events.InteractionCreate, async interaction => {
 
 // --- Login do Bot ---
 client.login(process.env.TOKEN);
-
-// [REMOVIDO] A chave '}' extra foi removida daqui.

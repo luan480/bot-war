@@ -1,168 +1,89 @@
-/* commands/adm/promotionHandler.js (ATUALIZADO COM BOTÃO) */
-
-const { Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+/* commands/adm/promotionHandler.js (Refatorado para Catch-Up) */
+const fs = require('fs');
 const path = require('path');
-const { safeReadJson, safeWriteJson } = require('../liga/utils/helpers.js');
+const { Events } = require('discord.js');
 
-const carreirasPath = path.join(__dirname, 'carreiras.json');
-const progressaoPath = path.join(__dirname, 'progressao.json');
+// Caminhos para os JSONs
+const pontuacaoPath = path.join(__dirname, '../liga/pontuacao.json');
+const serverDataPath = path.join(__dirname, 'server_data.json');
 
-module.exports = (client) => {
-    
+/**
+ * Esta é a lógica central para processar um print.
+ * Ela agora está separada para que possa ser usada em tempo real E no catch-up.
+ */
+async function processPrintMessage(message, printsChannelId, printsRoleId) {
+    // Ignora bots e mensagens fora do canal de prints
+    if (message.author.bot || message.channel.id !== printsChannelId) {
+        return;
+    }
+
+    try {
+        // Verifica se a mensagem tem um anexo (print)
+        if (message.attachments.size > 0) {
+            const member = message.member || await message.guild.members.fetch(message.author.id);
+            if (!member) return;
+
+            // Verifica se o membro tem o cargo necessário
+            if (member.roles.cache.has(printsRoleId)) {
+                
+                // --- IMPORTANTE: Verifica se o bot já reagiu com ✅ ---
+                // Se já reagiu, significa que esta mensagem já foi processada (no catch-up ou antes)
+                const hasBotReaction = message.reactions.cache.get('✅')?.me;
+                if (hasBotReaction) {
+                    return; 
+                }
+                // --- Fim da verificação ---
+
+                // 1. Reage à mensagem para marcar como processada
+                await message.react('✅');
+
+                // 2. Carrega a pontuação
+                let pontuacao = {};
+                try {
+                    pontuacao = JSON.parse(fs.readFileSync(pontuacaoPath, 'utf8'));
+                } catch (e) {
+                    console.error("Erro ao ler pontuacao.json para promotion:", e);
+                    // Continua mesmo se o ficheiro não existir, pois será criado
+                }
+
+                // 3. Adiciona o ponto
+                const userId = member.id;
+                pontuacao[userId] = (pontuacao[userId] || 0) + 1; // +1 ponto por print
+
+                // 4. Salva a pontuação
+                fs.writeFileSync(pontuacaoPath, JSON.stringify(pontuacao, null, 2));
+                console.log(`[Promoção] +1 ponto para ${member.user.tag} por print.`);
+            }
+        }
+    } catch (err) {
+        console.error(`Erro ao processar print [${message.url}]: ${err.message}`);
+    }
+}
+
+// Esta é a função original (o vigia) que fica ouvindo por novas mensagens
+const promotionVigia = (client) => {
+    let serverData = {};
+    try {
+        serverData = JSON.parse(fs.readFileSync(serverDataPath, 'utf8'));
+    } catch (err) {
+        console.error("Erro ao carregar server_data.json no promotionHandler:", err);
+        return;
+    }
+
     client.on(Events.MessageCreate, async message => {
-        const carreirasConfig = safeReadJson(carreirasPath);
-        if (message.author.bot || message.channel.id !== carreirasConfig.canalDePrints) {
-            return;
-        }
-        if (message.attachments.size === 0) {
-            return;
-        }
+        if (!message.guild) return;
 
-        try {
-            const member = message.member;
-            const userId = member.id;
-            const guild = message.guild; 
-            
-            let faccaoId = null;
-            for (const id of Object.keys(carreirasConfig.faccoes)) {
-                if (member.roles.cache.has(id)) {
-                    faccaoId = id;
-                    break;
-                }
-            }
-            if (!faccaoId) {
-                console.log(`[Prints] ${member.displayName} postou, mas não tem cargo de facção. Ignorando.`);
-                return;
-            }
+        const guildId = message.guild.id;
+        const config = serverData[guildId];
 
-            const faccao = carreirasConfig.faccoes[faccaoId];
-            const progressao = safeReadJson(progressaoPath);
-            
-            if (!progressao[userId]) {
-                console.log(`[Prints] Novo usuário detectado: ${member.displayName}. Verificando cargos...`);
-                let currentRankId = null;
-                let totalWins = 0;
-                for (let i = faccao.caminho.length - 1; i >= 0; i--) {
-                    const rank = faccao.caminho[i];
-                    if (member.roles.cache.has(rank.id)) {
-                        currentRankId = rank.id;
-                        totalWins = rank.custo; 
-                        console.log(`[Prints] Usuário já tem o cargo: ${rank.nome}. Definindo vitórias como: ${totalWins}`);
-                        break; 
-                    }
-                }
-                progressao[userId] = { factionId: faccaoId, currentRankId: currentRankId, totalWins: totalWins };
-            }
-
-            progressao[userId].totalWins += 1;
-            const totalWins = progressao[userId].totalWins;
-
-            await message.react('✅');
-
-            const cargoAtualId = progressao[userId].currentRankId;
-            let proximoCargo = null;
-
-            if (!cargoAtualId) {
-                proximoCargo = faccao.caminho[0];
-            } else {
-                const rankAtualIndex = faccao.caminho.findIndex(r => r.id === cargoAtualId);
-                if (rankAtualIndex < faccao.caminho.length - 1) { 
-                    proximoCargo = faccao.caminho[rankAtualIndex + 1];
-                }
-            }
-
-            if (!proximoCargo || totalWins < proximoCargo.custo) {
-                safeWriteJson(progressaoPath, progressao);
-                return;
-            }
-
-            // PROMOÇÃO!
-            const cargosParaAdicionar = [proximoCargo.id];
-            const cargosParaRemover = [carreirasConfig.cargoRecrutaId]; 
-            if (cargoAtualId) {
-                cargosParaRemover.push(cargoAtualId); 
-            }
-
-            await member.roles.add(cargosParaAdicionar);
-            await member.roles.remove(cargosParaRemover.filter(id => id && member.roles.cache.has(id))); 
-
-            progressao[userId].currentRankId = proximoCargo.id;
-            safeWriteJson(progressaoPath, progressao);
-
-            // Anuncia a promoção
-            const canalDeAnuncio = await client.channels.fetch(faccao.canalDeAnuncio).catch(() => null);
-            if (canalDeAnuncio) {
-
-                // --- [LÓGICA DO EMBED (A mesma de antes)] ---
-                let cargoAntigoNome = "• Recruta";
-                let custoPatenteAnterior = 0; 
-                if (cargoAtualId) { 
-                    const cargoAntigo = faccao.caminho.find(r => r.id === cargoAtualId);
-                    if (cargoAntigo) {
-                        cargoAntigoNome = cargoAntigo.nome;
-                        custoPatenteAnterior = cargoAntigo.custo;
-                    }
-                }
-                let proximaMetaNome = "Patente Máxima";
-                let proximaMetaProgresso = "Você atingiu o topo da sua carreira! Parabéns!";
-                const rankAtualIndex = faccao.caminho.findIndex(r => r.id === proximoCargo.id); 
-                if (rankAtualIndex < faccao.caminho.length - 1) { 
-                    const proximaMetaCargo = faccao.caminho[rankAtualIndex + 1];
-                    proximaMetaNome = proximaMetaCargo.nome;
-                    const winsNecessarias = proximaMetaCargo.custo;
-                    const winsFaltando = winsNecessarias - totalWins;
-                    const custoPatenteProxima = proximaMetaCargo.custo;
-                    const winsNestaEtapa = custoPatenteProxima - custoPatenteAnterior;
-                    const winsAtuaisNestaEtapa = totalWins - custoPatenteAnterior; 
-                    let percent = 0;
-                    if (winsNestaEtapa > 0) {
-                         percent = Math.floor((winsAtuaisNestaEtapa / winsNestaEtapa) * 10);
-                    }
-                    if (percent > 10) percent = 10;
-                    const barra = '■'.repeat(percent) + '□'.repeat(10 - percent); 
-                    proximaMetaProgresso = `**${winsFaltando} vitórias** para a próxima patente.\n${barra} (${totalWins} / ${winsNecessarias} totais)`;
-                }
-                
-                const embed = new EmbedBuilder()
-                    .setColor('#f1c40f')
-                    .setAuthor({ name: "SISTEMA DE PROMOÇÃO", iconURL: guild.iconURL() }) 
-                    .setTitle(`🏆 PROMOÇÃO DE ${faccao.nome.toUpperCase()} 🏆`)
-                    .setDescription(`Parabéns, ${member.user}! Você subiu na carreira!`) 
-                    .addFields(
-                        { name: "Patente Anterior", value: `~~${cargoAntigoNome}~~`, inline: true },
-                        { name: "Nova Patente", value: `**${proximoCargo.nome}**`, inline: true },
-                        { name: "Total de Vitórias", value: `🏆 ${totalWins}`, inline: true },
-                        { name: "Próxima Meta", value: proximaMetaNome, inline: false },
-                        { name: "Progresso para a Próxima Meta", value: proximaMetaProgresso, inline: false }
-                    )
-                    .setThumbnail(member.user.displayAvatarURL())
-                    .setFooter({ text: `Confira todas as patentes no canal 🛡・patentes` })
-                    .setTimestamp();
-                
-                // --- [NOVO] Adiciona o Botão de Status ---
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        // O ID do botão agora inclui o ID do usuário promovido
-                        .setCustomId(`carreira_status_${member.id}`) 
-                        .setLabel(`Ver Status de ${member.displayName}`)
-                        .setEmoji('📊')
-                        .setStyle(ButtonStyle.Success)
-                );
-                
-                await canalDeAnuncio.send({ 
-                    content: `${member}`, // O ping
-                    embeds: [embed],
-                    components: [row] // Adiciona o botão
-                });
-            }
-            // --- [FIM DA LÓGICA DO EMBED] ---
-
-            console.log(`[PROMOÇÃO] ${member.displayName} foi promovido para ${proximoCargo.nome} com ${totalWins} vitórias.`);
-
-        } catch (err)
-        {
-            console.error("Erro no sistema de promoção:", err);
-            await message.react('❌');
+        // Se o servidor tem a configuração, chama a lógica de processamento
+        if (config && config.printsChannelId && config.printsRoleId) {
+            await processPrintMessage(message, config.printsChannelId, config.printsRoleId);
         }
     });
 };
+
+// Exporta o vigia (para o index.js)
+module.exports = promotionVigia;
+// Exporta a lógica (para o catch-up usar)
+module.exports.processPrintMessage = processPrintMessage;
