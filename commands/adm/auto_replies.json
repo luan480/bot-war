@@ -30,8 +30,7 @@
     "ajuda": [
       "Se for uma emergência, abra um ticket no canal <#874794069073739816>.",
       "Dúvidas de jogo? Consulte o canal <#10679472192165186>.",
-      "Se precisar de um admin, abra um ticket em <#874794069073739816>.",
-      "Seja específico, soldado. 'Ajuda' não é um comando."
+      "Se precisar de um admin, abra um ticket em <#874794069073739816>."
     ],
     "admin": [
       "Se precisar de um administrador, abra um ticket no canal <#874794069073739816>.",
@@ -50,50 +49,40 @@
       "Minha IA detectou uma palavra-chave proibida. `Aliança` é contra as regras.",
       "Lembre-se, soldado: Alianças são para os fracos. E são proibidas.",
       "Não confie em ninguém. Alianças são traição.",
-      "Aliança? -30P e 3 dias de suspensão. Consulte <#881960444070350919>.",
-      "Detectei 'aliança'. Isso é conspiração. E é contra as regras."
+      "Aliança? -30P e 3 dias de suspensão. Consulte <#881960444070350919>."
     ],
     "estrategia": [
       "A melhor estratégia? Superioridade numérica. O resto é sorte.",
       "Consulte o Manual de Campo no canal de guias: <#10679472192165186>.",
       "Focar na Ásia? Arriscado. Focar na Oceania? Covarde. Escolha.",
-      "Domine seus bônus de continente e proteja suas fronteiras.",
-      "A melhor estratégia é ler o <#10679472192165186>.",
-      "Não divida suas tropas. Um exército unido é um exército vitorioso.",
-      "Atacar com 3 tropas é... otimismo. Ataque com 4+."
+      "Domine seus bônus de continente e proteja suas fronteiras."
     ],
     "regras": [
       "As regras da Liga estão no canal <#881960444070350919>.",
       "Quebrou uma regra? Prepare-se para a punição. Veja <#881960444070350919>.",
-      "O código de conduta geral está em <#854365038911160420>.",
-      "Procurando regras? Use <#854365038911160420> ou <#881960444070350919> para a Liga."
+      "O código de conduta geral está em <#854365038911160420>."
     ],
     "ticket": [
       "Para abrir um ticket, vá em <#874794069073739816> e clique no botão.",
-      "Problemas com jogadores? Denúncias? <#874794069073739816>.",
-      "Para falar com um <@&865915891399786518> ou <@&849697636574560296>, abra um ticket."
+      "Problemas com jogadores? Denúncias? <#874794069073739816>."
     ],
     "kamikaze": [
       "Atitude antijogo. Viola a regra 05. Consulte <#881960444070350919>.",
-      "-25P e 1 dia de castigo. Pense bem.",
-      "Sacrifício sem glória. E proibido."
+      "-25P e 1 dia de castigo. Pense bem."
     ],
     "ásia": [
       "Dominar a Ásia? Corajoso. Ou tolo.",
       "Bônus de +7. Boa sorte defendendo 10 fronteiras.",
-      "A chave da Ásia é a Oceania. Ou seria o contrário?",
-      "Não esqueça de Omsk e Vladvostok."
+      "A chave da Ásia é a Oceania. Ou seria o contrário?"
     ],
     "ganhei": [
       "Vitória! Excelente, soldado. Poste o print em <#1071976981924687912> para registrar sua patente!",
       "A vitória é temporária. A glória é eterna. Poste o print em <#1071976981924687912>.",
-      "Bom trabalho, soldado. Poste o print da vitória em <#1071976981924687912>.",
-      "Vitória fácil? O inimigo era fraco. Poste o print da mesma forma em <#1071976981924687912>."
+      "Bom trabalho, soldado. Poste o print da vitória em <#1071976981924687912>."
     ],
     "recruta": [
       "Novo no front? Você começa como <@&879845960052789288>.",
-      "Para deixar de ser Recruta, escolha sua facção e poste sua primeira vitória em <#1071976981924687912>.",
-      "Todos começam como <@&879845960052789288>. A glória vem com vitórias."
+      "Para deixar de ser Recruta, escolha sua facção e poste sua primeira vitória em <#1071976981924687912>."
     ],
     "patente": [
       "Quer ver sua patente? Use o botão no canal de promoção da sua facção ou digite `/carreira status`.",
@@ -103,60 +92,52 @@
     ],
     "liga": [
       "Informações sobre a Liga das Nações estão no canal <#1429504377395351854>.",
-      "Para registrar uma partida da liga, use o painel em <#1429504377395351854>.",
-      "A Liga é para os generais. A promoção de patentes é para os soldados. Não confunda."
+      "Para registrar uma partida da liga, use o painel em <#1429504377395351854>."
     ],
     "mapa": [
       "O mapa é o seu domínio. Conheça seus continentes.",
-      "Não sabe jogar? Consulte os guias em <#10679472192165186>.",
-      "Austrália é segura. Ásia é riqueza. África é central. Escolha sua tática."
+      "Não sabe jogar? Consulte os guias em <#10679472192165186>."
     ],
     "tropas": [
       "Não divida suas tropas. Um exército unido é um exército vitorioso.",
-      "Lembre-se: 4+ tropas para atacar com 3 dados. Menos que isso é arriscado.",
-      "A infantaria ganha batalhas. A logística ganha a guerra."
+      "Lembre-se: 4+ tropas para atacar com 3 dados. Menos que isso é arriscado."
     ]
   },
   "exactTriggers": {
+    "salve": [
+      "Seja bem-vindo, Recruta! \n\nQue bom que se apresentou. Aqui está o que você precisa para começar:\n\n1.  **Sistema de Patentes:** Veja como subir na carreira em <#1090178120910389349>.\n2.  **A Liga:** Acompanhe a competição principal no <#1429504377395351854>."
+    ],
     "ola": [
       "Olá, soldado. Pronto para a batalha?",
       "E aí. Foco no objetivo.",
       "Saudações, general. Em que posso ajudar?",
-      "Presente. Qual é a ordem?",
-      "Positivo. Reporte sua situação.",
-      "Saudações, combatente."
+      "Presente. Qual é a ordem?"
     ],
     "bom dia": [
       "Bom dia, general. O sol nasceu, hora de conquistar territórios.",
-      "Alvorada, soldado. Hora de checar as fronteiras.",
-      "Dispensar o sono. A batalha já começou."
+      "Alvorada, soldado. Hora de checar as fronteiras."
     ],
     "boa noite": [
       "Boa noite, soldado. Mantenha os olhos abertos.",
-      "Dispensado, soldado. Descanse, mas mantenha uma sentinela.",
-      "Câmbio e desligo. Mantenha a guarda."
+      "Dispensado, soldado. Descanse, mas mantenha uma sentinela."
     ],
     "ping": [
       "Pong. Latência de combate: 3ms. Estou pronto.",
       "Não me dê 'ping'. Me dê um alvo.",
-      "Estou aqui. Sempre aqui.",
-      "Pong. Meu tempo de resposta é 0.01s. O seu?"
+      "Estou aqui. Sempre aqui."
     ],
     "perdi": [
       "Acontece, soldado. Reagrupe-se e tente novamente.",
       "Derrota? Isso é só uma lição tática. Aprenda com ela.",
-      "Menos conversa, mais treino.",
-      "Um general de verdade aprende com as derrotas."
+      "Menos conversa, mais treino."
     ],
     "gg": [
       "GG. Não esqueça do print da vitória em <#1071976981924687912>.",
-      "Bom jogo. Próxima.",
-      "GG. Agora para o debriefing."
+      "Bom jogo. Próxima."
     ],
     "alguém?": [
       "Sempre há soldados de prontidão. Organize uma partida no <#849696656730357762>.",
-      "Procurando grupo? Use os canais de voz.",
-      "Disponível para jogo? Chame no <#849696656730357762>."
+      "Procurando grupo? Use os canais de voz."
     ],
     "sorte": [
       "A sorte favorece os preparados. E os que atacam com 4+ tropas.",
