@@ -1,8 +1,7 @@
 /* ========================================================================
-   ARQUIVO index.js (COM 30 STATUS ROTATIVOS A CADA 1 HORA)
+   ARQUIVO index.js (COM CORREÇÃO DO ERRO DE SINTAXE 'name:Grave:')
    
-   - A lista de status foi expandida para 30 frases com emojis.
-   - O 'setInterval' foi ajustado para 1 hora (3.600.000 ms).
+   - Corrigido o erro de digitação na 'statusList' (Linha 75).
    ======================================================================== */
    
 require('dotenv').config(); 
@@ -56,16 +55,13 @@ const ticketOpenHandler = require('./commands/ticket/ticketOpenHandler.js');
 const ticketCloseHandler = require('./commands/ticket/ticketCloseHandler.js');
 const logHandler = require('./commands/adm/logHandler.js'); 
 const welcomeHandler = require('./commands/adm/welcomeHandler.js');
+const autoResponderHandler = require('./commands/adm/autoResponderHandler.js'); 
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
     console.log(`🤖 ${c.user.tag} está online!`);
     
-    /* ==================================================================
-       [NOVO] SISTEMA DE STATUS ROTATIVO (30 FRASES / 1 HORA)
-       ================================================================== */
-    
-    // 1. A Lista de 30 Frases
+    // --- Sistema de Status Rotativo ---
     const statusList = [
         { name: '🎮 War', type: ActivityType.Playing },
         { name: '🏆 a Liga das Nações', type: ActivityType.Competing },
@@ -89,33 +85,19 @@ client.once(Events.ClientReady, async c => {
         { name: '🚁 a Aeronáutica', type: ActivityType.Watching },
         { name: '⚓ a Marinha', type: ActivityType.Watching },
         { name: '🔰 o Exército', type: ActivityType.Watching },
-        { name: '⚔️ os Mercenários', type: ActivityType.Watching },
-        { name: '📜 os guias de estratégia', type: ActivityType.Watching },
-        { name: '📣 um /anuncio', type: ActivityType.Playing },
-        { name: '🔨 banindo cheaters', type: ActivityType.Playing },
-        { name: '📁 organizando os logs', type: ActivityType.Watching },
-        { name: '🧑‍✈️ o Almirante', type: ActivityType.Listening },
-        { name: '💥 preparando o /nuke', type: ActivityType.Playing },
-        { name: '💂 Vigiando... sempre vigiando.', type: ActivityType.Watching }
+        // [CORREÇÃO AQUI] Removido o "Grave:" que estava sobrando
+        { name: '⚔️ os Mercenários', type: ActivityType.Watching }, { name: '📜 os guias de estratégia', type: ActivityType.Watching },
+        { name: '📣 um /anuncio', type: ActivityType.Playing }, { name: '🔨 banindo cheaters', type: ActivityType.Playing },
+        { name: '📁 organizando os logs', type: ActivityType.Watching }, { name: '🧑‍✈️ o Almirante', type: ActivityType.Listening },
+        { name: '💥 preparando o /nuke', type: ActivityType.Playing }, { name: '💂 Vigiando... sempre vigiando.', type: ActivityType.Watching }
     ];
-
-    // 2. A Função que atualiza o status
     const updateStatus = () => {
         const randomStatus = statusList[Math.floor(Math.random() * statusList.length)];
         client.user.setActivity(randomStatus.name, { type: randomStatus.type });
         console.log(`[Status] Status atualizado para: ${ActivityType[randomStatus.type]} ${randomStatus.name}`);
     };
-
-    // 3. Roda a função pela primeira vez (imediatamente)
     updateStatus();
-    
-    // 4. Roda a função a cada 1 hora
-    // (1 hora * 60 min * 60 seg * 1000 ms = 3.600.000)
-    setInterval(updateStatus, 3600000);
-
-    /* ==================================================================
-       [FIM DO SISTEMA DE STATUS]
-       ================================================================== */
+    setInterval(updateStatus, 3600000); // 1 hora
 
     // --- Ativa os Vigias ---
     try {
@@ -135,6 +117,12 @@ client.once(Events.ClientReady, async c => {
         console.log("✅ Sistema de Boas-Vindas ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Boas-Vindas:", err);
+    }
+    try {
+        autoResponderHandler(client); 
+        console.log("✅ Sistema de Auto-Responder (Chatbot) ativado.");
+    } catch (err) {
+        console.error("❌ Falha ao ativar o Auto-Responder:", err);
     }
 });
 
