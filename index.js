@@ -1,4 +1,4 @@
-/* index.js (ATUALIZADO PARA 'CATCH-UP' V2) */
+/* index.js (Restaurado ao Original) */
    
 require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
@@ -54,9 +54,7 @@ const logHandler = require('./commands/adm/logHandler.js');
 const welcomeHandler = require('./commands/adm/welcomeHandler.js');
 const autoResponderHandler = require('./commands/adm/autoResponderHandler.js'); 
 const statusHandler = require('./commands/adm/statusHandler.js');
-// [NOVO] Adiciona o handler de catch-up
-const catchUpPrintsHandler = require('./commands/adm/catchUpPrintsHandler.js');
-
+// [REMOVIDO] A chamada ao 'catchUpPrintsHandler' foi removida.
 
 // --- Evento de Bot Pronto ---
 client.once(Events.ClientReady, async c => {
@@ -70,7 +68,7 @@ client.once(Events.ClientReady, async c => {
         console.error("❌ Falha ao ativar o Sistema de Status:", err);
     }
     try {
-        promotionVigia(client); 
+        promotionVigia(client); // Esta é a tua lógica original
         console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Sistema de Promoção:", err);
@@ -92,15 +90,6 @@ client.once(Events.ClientReady, async c => {
         console.log("✅ Sistema de Auto-Responder (Chatbot) ativado.");
     } catch (err) {
         console.error("❌ Falha ao ativar o Auto-Responder:", err);
-    }
-
-    // [NOVO] Ativa o sistema de verificação de prints perdidos DEPOIS de tudo
-    try {
-        // Usamos 'await' para garantir que ele termina a verificação antes de continuar
-        await catchUpPrintsHandler(client); 
-        console.log("✅ Sistema de 'Catch-Up' (prints perdidos) ativado.");
-    } catch (err) {
-        console.error("❌ Falha ao ativar o Sistema de 'Catch-Up':", err);
     }
 });
 
