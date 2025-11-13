@@ -1,29 +1,44 @@
 /* ========================================================================
-   ARQUIVO: commands/adm/promotionHandler.js (CORRIGIDO)
+   ARQUIVO: commands/adm/promotionHandler.js (VERSÃO FINAL CORRIGIDA)
    
+   - [MUDANÇA] Importa TUDO que precisamos do helper local './carreiraHelpers.js'.
+   - [MUDANÇA] Importa 'carreiras.json' para saber as regras de promoção.
    - [CORREÇÃO] Lê 'promocao_config.json' (em vez de server_data.json).
    - [CORREÇÃO] Salva as vitórias em 'progressao.json' (em vez de pontuacao.json).
-   - Isso resolve o conflito com o sistema da LIGA.
+   - [NOVO] CHAMA 'recalcularRank' DEPOIS de adicionar a vitória,
+     promovendo o usuário automaticamente.
    ======================================================================== */
 
 const { Events } = require('discord.js');
 const path = require('path');
-const { safeReadJson, safeWriteJson } = require('../liga/utils/helpers.js');
+// [MUDANÇA] Importa TUDO que precisamos do helper local
+const { safeReadJson, safeWriteJson, recalcularRank } = require('./carreiraHelpers.js');
 
-// [CAMINHOS CORRIGIDOS]
-const configPath = path.join(__dirname, 'promocao_config.json');
-const progressaoPath = path.join(__dirname, 'progressao.json'); // Arquivo de dados das patentes
+// Caminhos para os arquivos JSON (agora todos corretos)
+const configPath = path.join(__dirname, 'promocao_config.json'); // O arquivo que vamos criar
+const progressaoPath = path.join(__dirname, 'progressao.json');
+const carreirasPath = path.join(__dirname, 'carreiras.json'); // O seu arquivo de patentes
+
 
 const promotionVigia = (client) => {
     
-    // Carrega a configuração UMA VEZ quando o bot liga
+    // Carrega as configurações UMA VEZ quando o bot liga
     const config = safeReadJson(configPath);
-    if (!config.printsChannelId || !config.baseRoleId) {
+    const carreirasConfig = safeReadJson(carreirasPath); // Carrega as regras de patente
+    
+    // Pega o ID do cargo Recruta do carreiras.json
+    const cargoRecrutaId = carreirasConfig.cargoRecrutaId; 
+
+    if (!config.printsChannelId) {
         console.warn("[AVISO DE PROMOÇÃO] O sistema de promoção está desativado. Use /promocao-configurar.");
-        return; // Para de executar se não estiver configurado
+        return; 
+    }
+    if (!carreirasConfig || !carreirasConfig.faccoes || !cargoRecrutaId) {
+        console.warn("[AVISO DE PROMOÇÃO] O arquivo 'carreiras.json' não foi encontrado ou está mal formatado (falta 'faccoes' ou 'cargoRecrutaId').");
+        return;
     }
 
-    console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${config.printsChannelId}, Cargo: ${config.baseRoleId}`);
+    console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${config.printsChannelId}`);
 
     client.on(Events.MessageCreate, async message => {
         // Verifica se a mensagem é no canal configurado
@@ -33,43 +48,75 @@ const promotionVigia = (client) => {
         if (message.author.bot) return;
 
         // Verifica se tem anexo
-        if (message.attachments.size > 0) {
-            const member = message.member;
-            if (!member) return; // Membro não está no cache, ignora
+        if (message.attachments.size === 0) return;
 
-            // Verifica se o membro tem o cargo base (ex: @Recruta)
-            if (member.roles.cache.has(config.baseRoleId)) {
-                
-                try {
-                    // 1. Reage à mensagem
-                    await message.react('🔰'); // Reação de patente
-
-                    // 2. Carrega a progressão
-                    const progressao = safeReadJson(progressaoPath);
-
-                    // 3. Adiciona a vitória
-                    const userId = member.id;
-                    
-                    // Inicializa se for o primeiro registro
-                    if (!progressao[userId]) {
-                        progressao[userId] = {
-                            factionId: null, // O usuário precisa escolher a facção
-                            currentRankId: null,
-                            totalWins: 0
-                        };
-                    }
-                    
-                    progressao[userId].totalWins = (progressao[userId].totalWins || 0) + 1;
-
-                    // 4. Salva a progressão
-                    safeWriteJson(progressaoPath, progressao);
-                    
-                    console.log(`[Promoção] +1 vitória de patente para ${member.user.tag}. Total: ${progressao[userId].totalWins}`);
-
-                } catch (err) {
-                    console.error(`Erro ao processar print de patente [${message.url}]: ${err.message}`);
-                }
+        const member = message.member;
+        if (!member) return;
+        
+        // [LÓGICA DE FACÇÃO]
+        // Verifica se o membro tem um cargo de facção.
+        let faccaoId = null;
+        for (const id of Object.keys(carreirasConfig.faccoes)) {
+            // Verifica se o ID do cargo da facção (a chave) está nos cargos do membro
+            if (member.roles.cache.has(id)) {
+                faccaoId = id;
+                break;
             }
+        }
+        
+        // Se ele não tem facção E não é um @Recruta, ele não pode postar.
+        if (!faccaoId && !member.roles.cache.has(cargoRecrutaId)) {
+            return;
+        }
+
+        try {
+            const progressao = safeReadJson(progressaoPath);
+            const userId = member.id;
+            
+            // Se for o primeiro print do usuário
+            if (!progressao[userId]) {
+                // E ele ainda não tem uma facção (é só recruta)
+                if (!faccaoId) {
+                    await message.reply({ content: `${member}, não consegui identificar sua facção. Você precisa pegar o cargo da sua facção (Exército, Marinha, etc.) antes de registrar sua primeira vitória.`});
+                    return;
+                }
+                
+                // Primeiro registro no 'progressao.json'
+                progressao[userId] = {
+                    factionId: faccaoId, 
+                    currentRankId: null, // Começa como recruta
+                    totalWins: 0
+                };
+            }
+            
+            // Pega os dados do usuário
+            const userProgress = progressao[userId];
+            const faccao = carreirasConfig.faccoes[userProgress.factionId];
+
+            if (!faccao) {
+                 console.error(`[Promoção] Usuário ${member.user.tag} tem uma facção ID (${userProgress.factionId}) que não existe no carreiras.json.`);
+                 return;
+            }
+
+            // ---- O CONTADOR ----
+            await message.react('🔰'); // Reage primeiro para o usuário ver
+            userProgress.totalWins = (userProgress.totalWins || 0) + 1;
+            
+            // ---- A "PONTE" (O AGENTE) ----
+            // Agora, chama o Agente de Promoção para verificar
+            // se essa +1 vitória resultou em uma promoção.
+            
+            await recalcularRank(member, faccao, userProgress, cargoRecrutaId);
+            
+            // ---------------------------------------------
+            
+            // Salva o 'progressao.json' (agora com +1 vitória E o cargoId atualizado)
+            safeWriteJson(progressaoPath, progressao);
+            
+            console.log(`[Promoção] +1 vitória para ${member.user.tag}. Total: ${userProgress.totalWins}. Cargo atual: ${userProgress.currentRankId}`);
+
+        } catch (err) {
+            console.error(`Erro ao processar print de patente [${message.url}]: ${err.message}`);
         }
     });
 };

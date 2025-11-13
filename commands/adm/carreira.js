@@ -1,72 +1,35 @@
 /* ========================================================================
-   ARQUIVO: commands/adm/carreira.js (CORRIGIDO)
+   ARQUIVO: commands/adm/carreira.js (ATUALIZADO)
    
-   - [CORREÇÃO] Movido o 'setDefaultMemberPermissions' para o
-     comando principal, consertando o crash 'is not a function'.
+   - [MUDANÇA] Agora importa as funções do './carreiraHelpers.js' local.
+   - [CORREÇÃO] A função 'recalcularRank' foi removida daqui.
    ======================================================================== */
 
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const path = require('path');
-const { safeReadJson, safeWriteJson } = require('../liga/utils/helpers.js');
+// [MUDANÇA] Importa do helper local
+const { safeReadJson, safeWriteJson, recalcularRank } = require('./carreiraHelpers.js'); 
 
 const carreirasPath = path.join(__dirname, 'carreiras.json');
 const progressaoPath = path.join(__dirname, 'progressao.json');
 
-// (A função 'recalcularRank' é a mesma, sem mudanças)
-async function recalcularRank(member, faccao, userProgress, cargoRecrutaId) {
-    const totalWins = userProgress.totalWins;
-    let novoCargo = null;
-    for (let i = faccao.caminho.length - 1; i >= 0; i--) {
-        const rank = faccao.caminho[i];
-        if (totalWins >= rank.custo) {
-            novoCargo = rank;
-            break;
-        }
-    }
-    const cargoAtualId = userProgress.currentRankId;
-    if (novoCargo && cargoAtualId === novoCargo.id) {
-        return;
-    }
-    if (!novoCargo && cargoAtualId) {
-        await member.roles.remove(cargoAtualId);
-        userProgress.currentRankId = null;
-        return;
-    }
-    if (novoCargo) {
-        const cargosParaRemover = [cargoRecrutaId];
-        for (const rank of faccao.caminho) {
-            if (rank.id !== novoCargo.id) {
-                cargosParaRemover.push(rank.id);
-            }
-        }
-        await member.roles.remove(cargosParaRemover.filter(id => id && member.roles.cache.has(id)));
-        await member.roles.add(novoCargo.id);
-        userProgress.currentRankId = novoCargo.id;
-    }
-}
-
+// [REMOVIDO] A função 'recalcularRank' não fica mais aqui.
 
 module.exports = {
-    // 1. Definição do Comando
+    // 1. Definição do Comando (O seu código original)
     data: new SlashCommandBuilder()
         .setName('carreira')
         .setDescription('Comandos do sistema de progressão de carreira.')
-        // [CORREÇÃO AQUI] A permissão de admin vai aqui, no comando principal
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) 
-        
-        // --- COMANDO PÚBLICO ---
         .addSubcommand(subcommand =>
             subcommand
                 .setName('status')
                 .setDescription('Posta seu status de vitórias e patente no canal da sua facção.')
         )
-
-        // --- COMANDOS DE ADMIN ---
         .addSubcommand(subcommand =>
             subcommand
                 .setName('setar-vitorias')
                 .setDescription('[ADMIN] Define o total de vitórias de um jogador e corrige sua patente.')
-                // A permissão foi removida daqui
                 .addUserOption(option => option.setName('usuario').setDescription('O membro que você quer modificar.').setRequired(true))
                 .addIntegerOption(option => option.setName('quantidade').setDescription('O número total de vitórias.').setRequired(true).setMinValue(0))
         )
@@ -74,7 +37,6 @@ module.exports = {
             subcommand
                 .setName('adicionar-vitorias')
                 .setDescription('[ADMIN] Adiciona vitórias (bônus) a um jogador e o promove se necessário.')
-                // A permissão foi removida daqui
                 .addUserOption(option => option.setName('usuario').setDescription('O membro que você quer modificar.').setRequired(true))
                 .addIntegerOption(option => option.setName('quantidade').setDescription('O número de vitórias para adicionar.').setRequired(true))
         )
@@ -82,13 +44,12 @@ module.exports = {
             subcommand
                 .setName('resetar')
                 .setDescription('[ADMIN] Zera o progresso (vitórias e patente) de um jogador.')
-                // A permissão foi removida daqui
                 .addUserOption(option => option.setName('usuario').setDescription('O membro que você quer resetar.').setRequired(true))
         ),
     
-    // 2. Lógica de Execução
+    // 2. Lógica de Execução (O seu código original)
+    // (Não precisa mudar nada aqui, pois o 'require' já foi corrigido)
     async execute(interaction) {
-        // (O resto do código 'execute' é o mesmo, sem mudanças)
         const subcommand = interaction.options.getSubcommand();
         const carreirasConfig = safeReadJson(carreirasPath);
         const progressao = safeReadJson(progressaoPath);
