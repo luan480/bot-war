@@ -61,5 +61,19 @@ for (const file of eventFiles) {
     }
 }
 
+// --- MUDANÇA AQUI: HANDLERS GLOBAIS DE ERRO (ANTI-CRASH) ---
+// Captura erros de promessas não tratadas (ex: falha na API do Discord)
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[ERRO CRÍTICO] Rejeição não tratada:', reason);
+    // Idealmente, aqui também se enviaria uma mensagem para um canal de logs
+});
+
+// Captura exceções fatais não apanhadas no código
+process.on('uncaughtException', (error) => {
+    console.error('[ERRO CRÍTICO] Exceção não capturada:', error);
+});
+// --- FIM DA MUDANÇA ---
+
+
 // --- Login do Bot ---
 client.login(process.env.TOKEN);
