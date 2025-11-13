@@ -1,16 +1,13 @@
 /* ========================================================================
-   ARQUIVO: commands/adm/promotionHandler.js (VERSÃO 100% AUTOMÁTICA)
+   ARQUIVO: commands/adm/promotionHandler.js (VERSÃO FINAL COM NOTIFICAÇÃO)
    
-   - Este é o "Vigia de Prints".
-   - [NOVO] Lógica de "Sincronização Automática" de veteranos.
-   - [MUDANÇA] Importa TUDO que precisamos do helper local './carreiraHelpers.js'.
-   - [MUDANÇA] Importa 'carreiras.json' para saber as regras de promoção.
-   - [CORREÇÃO] Lê a config (canalDePrints) direto do 'carreiras.json'.
-   - [CORREÇÃO] Salva as vitórias em 'progressao.json'.
-   - [NOVO] CHAMA 'recalcularRank' DEPOIS de adicionar a vitória.
+   - [A CORREÇÃO QUE FALTAVA] Agora o bot envia uma mensagem
+     no canal de anúncios da facção quando o usuário é promovido.
+   - [NOVO] Importa o 'EmbedBuilder' para criar a mensagem.
    ======================================================================== */
 
-const { Events } = require('discord.js');
+// [NOVO] Importamos o EmbedBuilder
+const { Events, EmbedBuilder } = require('discord.js');
 const path = require('path');
 const { safeReadJson, safeWriteJson, recalcularRank } = require('./carreiraHelpers.js');
 
@@ -23,8 +20,6 @@ const promotionVigia = (client) => {
     
     // Carrega as configurações UMA VEZ quando o bot liga
     const carreirasConfig = safeReadJson(carreirasPath);
-    
-    // Pega as configs direto do carreiras.json
     const canalDePrintsId = carreirasConfig.canalDePrints; 
     const cargoRecrutaId = carreirasConfig.cargoRecrutaId; 
 
@@ -40,19 +35,13 @@ const promotionVigia = (client) => {
     console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${canalDePrintsId}`);
 
     client.on(Events.MessageCreate, async message => {
-        // Verifica se a mensagem é no canal configurado
         if (message.channel.id !== canalDePrintsId) return;
-        
-        // Ignora bots
         if (message.author.bot) return;
-
-        // Verifica se tem anexo
         if (message.attachments.size === 0) return;
 
         const member = message.member;
         if (!member) return;
         
-        // [LÓGICA DE FACÇÃO]
         let faccaoId = null;
         let faccao = null;
         for (const id of Object.keys(carreirasConfig.faccoes)) {
@@ -63,7 +52,6 @@ const promotionVigia = (client) => {
             }
         }
         
-        // Se ele não tem facção E não é um @Recruta, ele não pode postar.
         if (!faccaoId && !member.roles.cache.has(cargoRecrutaId)) {
             return;
         }
@@ -72,43 +60,35 @@ const promotionVigia = (client) => {
             const progressao = safeReadJson(progressaoPath);
             const userId = member.id;
             
-            // --- A LÓGICA DE SINCRONIZAÇÃO AUTOMÁTICA QUE VOCÊ PEDIU ---
-            // Se o usuário (veterano ou recruta) NÃO ESTÁ no progressao.json...
+            // --- Sincronização Automática ---
             if (!progressao[userId]) {
-                
-                // 1. Precisamos da facção dele.
                 if (!faccaoId) {
                     await message.reply({ content: `${member}, não consegui identificar sua facção. Você precisa pegar o cargo da sua facção (Exército, Marinha, etc.) antes de registrar sua primeira vitória.`});
                     return;
                 }
                 
-                // 2. Procuramos a patente mais alta que ele JÁ TEM
                 let cargoMaisAlto = null;
                 let custoDoCargo = 0;
                 for (let i = faccao.caminho.length - 1; i >= 0; i--) {
                     const rank = faccao.caminho[i];
                     if (member.roles.cache.has(rank.id)) {
                         cargoMaisAlto = rank;
-                        custoDoCargo = rank.custo; // Achamos o "custo" do cargo dele
+                        custoDoCargo = rank.custo; 
                         break; 
                     }
                 }
 
-                // 3. Criamos o registro dele
                 progressao[userId] = {
                     factionId: faccaoId, 
                     currentRankId: cargoMaisAlto ? cargoMaisAlto.id : null,
-                    totalWins: custoDoCargo // Ele começa com as vitórias do cargo que ele já tinha
+                    totalWins: custoDoCargo 
                 };
                 
                 console.log(`[Promoção] Usuário VETERANO ${member.user.tag} sincronizado. Começando com ${custoDoCargo} vitórias.`);
             }
             
-            // --- FIM DA LÓGICA DE SINCRONIZAÇÃO ---
-
-            // Pega os dados do usuário (seja ele novo ou antigo)
+            // Pega os dados
             const userProgress = progressao[userId];
-            // (Se ele era recruta e não tinha facção, ele foi barrado no 'if (!faccaoId)' acima)
             const faccaoDoUsuario = carreirasConfig.faccoes[userProgress.factionId];
 
             if (!faccaoDoUsuario) {
@@ -117,21 +97,52 @@ const promotionVigia = (client) => {
             }
 
             // ---- O CONTADOR ----
-            await message.react('🔰'); // Reage para confirmar
-            userProgress.totalWins = userProgress.totalWins + 1; // Adiciona a nova vitória
             
-            // ---- A "PONTE" (O AGENTE) ----
-            // Chama o Agente de Promoção para verificar se essa +1 vitória
-            // resultou em uma promoção.
+            // Guarda o cargo antigo ANTES de recalcular
+            const cargoAntigoId = userProgress.currentRankId; 
             
+            await message.react('🔰'); 
+            userProgress.totalWins = userProgress.totalWins + 1;
+            
+            // ---- O AGENTE ----
             await recalcularRank(member, faccaoDoUsuario, userProgress, cargoRecrutaId);
             
-            // ---------------------------------------------
-            
-            // Salva o 'progressao.json'
+            // ---- O SALVAMENTO ----
             safeWriteJson(progressaoPath, progressao);
             
-            console.log(`[Promoção] +1 vitória para ${member.user.tag}. Total: ${userProgress.totalWins}. Cargo atual: ${userProgress.currentRankId}`);
+            // Pega o cargo novo DEPOIS de recalcular
+            const cargoNovoId = userProgress.currentRankId; 
+            
+            console.log(`[Promoção] +1 vitória para ${member.user.tag}. Total: ${userProgress.totalWins}. Cargo atual: ${cargoNovoId}`);
+
+            /* ============================================================
+               [A NOTIFICAÇÃO QUE FALTAVA]
+               Se o cargo antigo for diferente do cargo novo,
+               o bot envia a mensagem de promoção.
+            ============================================================ */
+            if (cargoAntigoId !== cargoNovoId) {
+                const novoCargo = faccaoDoUsuario.caminho.find(r => r.id === cargoNovoId);
+                const canalDeAnuncio = await client.channels.fetch(faccaoDoUsuario.canalDeAnuncio).catch(() => null);
+                
+                if (canalDeAnuncio && novoCargo) {
+                    // (Este embed é baseado no seu comando /carreira status)
+                    const embed = new EmbedBuilder()
+                        .setColor('#F1C40F') 
+                        .setAuthor({ name: `PROMOÇÃO: ${member.user.username}`, iconURL: member.user.displayAvatarURL() })
+                        .setThumbnail(faccaoDoUsuario.nome.includes("Exército") ? "https://i.imgur.com/yBfXTrG.png" : faccaoDoUsuario.nome.includes("Marinha") ? "https://i.imgur.com/GjNlGDu.png" : faccaoDoUsuario.nome.includes("Aeronáutica") ? "https://i.imgur.com/4lGjYQx.png" : "https://i.imgur.com/3QGjGjB.png")
+                        .addFields(
+                            { name: "Facção", value: faccaoDoUsuario.nome, inline: true },
+                            { name: "Nova Patente", value: `**${novoCargo.nome}**`, inline: true },
+                            { name: "Total de Vitórias", value: `🏆 ${userProgress.totalWins}`, inline: true }
+                        )
+                        .setTimestamp();
+
+                    await canalDeAnuncio.send({ 
+                        content: `🎉 **PROMOÇÃO!** 🎉\nParabéns ${member}, você foi promovido!`, 
+                        embeds: [embed] 
+                    });
+                }
+            }
 
         } catch (err) {
             console.error(`Erro ao processar print de patente [${message.url}]: ${err.message}`);
