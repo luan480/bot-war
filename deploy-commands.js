@@ -1,21 +1,13 @@
 /* ========================================================================
-   ARQUIVO deploy-commands.js (COM CORREÇÃO DO dotenv)
-   
-   - Adicionada a linha 'require('dotenv').config()' no topo
-     para que ele possa ler seu arquivo .env local.
+   ARQUIVO deploy-commands.js (COM CORREÇÃO DO dotenv E LOADER LIMPO)
    ======================================================================== */
 
-//
-// ⬇️ ESTA É A LINHA QUE FALTAVA ⬇️
-//
 require('dotenv').config(); // Esta linha LÊ o seu .env e o torna disponível
 
-// O resto do seu código
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-// MUDANÇA: Lendo as variáveis (agora carregadas pelo dotenv)
 const clientId = process.env.CLIENT_ID;
 const guildId = process.env.GUILD_ID;
 const token = process.env.TOKEN;
@@ -40,11 +32,10 @@ for (const folder of commandFolders) {
     for (const file of commandFiles) {
         const filePath = path.join(folderPath, file);
         try {
-            // Ignora os handlers
-            if (file === 'promotionHandler.js' || file === 'carreiraButtonHandler.js') continue; 
-            
             const command = require(filePath);
-            if (command.data && command.data.toJSON && command.execute) {
+            // Esta é a única verificação necessária.
+            // Se o ficheiro tiver 'data' e 'execute', é um comando.
+            if (command.data && command.execute) {
                 commands.push(command.data.toJSON());
                 console.log(`[SUCESSO] Comando carregado: ${command.data.name} (de ${folder}/${file})`);
             } else {

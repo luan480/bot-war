@@ -1,7 +1,7 @@
-/* index.js (Restaurado ao Original) */
+/* index.js (RESTRUTURADO E LIMPO) */
    
 require('dotenv').config(); 
-const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js'); 
+const { Client, GatewayIntentBits, Collection } = require('discord.js'); 
 const fs = require('fs');
 const path = require('path');
 
@@ -23,20 +23,20 @@ const commandsPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(commandsPath).filter(folder => 
     fs.statSync(path.join(commandsPath, folder)).isDirectory()
 );
+
 for (const folder of commandFolders) {
     const folderPath = path.join(commandsPath, folder);
     const commandFiles = fs.readdirSync(folderPath).filter(f => f.endsWith('.js'));
+    
     for (const file of commandFiles) {
         const filePath = path.join(folderPath, file);
         try {
-            // Ignora ficheiros de 'handler' para não carregar como comando
-            if (file.endsWith('Handler.js') || file === 'buttons.js' || file === 'helpers.js') {
-                console.log(`[INFO] Módulo/Handler ignorado no carregador: ${file}`);
-                continue; 
-            }
             const command = require(filePath);
-            if (command.data && command.data.toJSON && command.execute) {
+            // Apenas carrega ficheiros que exportam 'data' e 'execute'
+            if (command.data && command.execute) {
                 client.commands.set(command.data.name, command);
+            } else {
+                 console.log(`[INFO] O ficheiro em ${filePath} não é um comando válido e foi ignorado.`);
             }
         } catch (err) {
             console.error(`[AVISO] Não foi possível carregar o comando ${filePath}: ${err.message}`);
@@ -44,114 +44,22 @@ for (const folder of commandFolders) {
     }
 }
 
-// --- Carregadores de Módulos (Vigias e Handlers) ---
-const ligaButtonHandler = require('./commands/liga/buttons.js');
-const carreiraButtonHandler = require('./commands/adm/carreiraButtonHandler.js');
-const promotionVigia = require('./commands/adm/promotionHandler.js');
-const ticketOpenHandler = require('./commands/ticket/ticketOpenHandler.js');
-const ticketCloseHandler = require('./commands/ticket/ticketCloseHandler.js');
-const logHandler = require('./commands/adm/logHandler.js'); 
-const welcomeHandler = require('./commands/adm/welcomeHandler.js');
-const autoResponderHandler = require('./commands/adm/autoResponderHandler.js'); 
-const statusHandler = require('./commands/adm/statusHandler.js');
-// [REMOVIDO] A chamada ao 'catchUpPrintsHandler' foi removida.
+// --- Carregador de Eventos ---
+// (Esta é a nova parte)
+const eventsPath = path.join(__dirname, 'events');
+const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
-// --- Evento de Bot Pronto ---
-client.once(Events.ClientReady, async c => {
-    console.log(`🤖 ${c.user.tag} está online!`);
+for (const file of eventFiles) {
+    const filePath = path.join(eventsPath, file);
+    const event = require(filePath);
     
-    // --- Ativa os Vigias ---
-    try {
-        statusHandler(client);
-        console.log("✅ Sistema de Status Rotativo ativado.");
-    } catch (err) {
-        console.error("❌ Falha ao ativar o Sistema de Status:", err);
+    // Passa o 'client' como último argumento para os handlers de eventos
+    if (event.once) {
+        client.once(event.name, (...args) => event.execute(...args, client));
+    } else {
+        client.on(event.name, (...args) => event.execute(...args, client));
     }
-    try {
-        promotionVigia(client); // Esta é a tua lógica original
-        console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
-    } catch (err) {
-        console.error("❌ Falha ao ativar o Sistema de Promoção:", err);
-    }
-    try {
-        logHandler(client); 
-        console.log("✅ Sistema de Logs (Poderoso) ativado.");
-    } catch (err) {
-        console.error("❌ Falha ao ativar o Sistema de Logs:", err);
-    }
-    try {
-        welcomeHandler(client); 
-        console.log("✅ Sistema de Boas-Vindas ativado.");
-    } catch (err) {
-        console.error("❌ Falha ao ativar o Sistema de Boas-Vindas:", err);
-    }
-    try {
-        autoResponderHandler(client); 
-        console.log("✅ Sistema de Auto-Responder (Chatbot) ativado.");
-    } catch (err) {
-        console.error("❌ Falha ao ativar o Auto-Responder:", err);
-    }
-});
-
-// --- Evento de Interação ---
-client.on(Events.InteractionCreate, async interaction => {
-    
-    if (interaction.isCommand()) {
-        const command = client.commands.get(interaction.commandName);
-        if (!command) return;
-        try {
-            await command.execute(interaction);
-        } catch (err) {
-            console.error(`[ERRO NO COMANDO /${interaction.commandName}]`, err);
-            try {
-                const errorMessage = `❌ **Erro Crítico!** Ocorreu um problema:\n\n\`\`\`${err.message}\`\`\``;
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: errorMessage, ephemeral: true });
-                } else {
-                    await interaction.reply({ content: errorMessage, ephemeral: true });
-                }
-            } catch (catchErr) {
-                console.error("[ERRO NO CATCH] Não foi possível responder à interação que falhou:", catchErr.message);
-            }
-        }
-    }
-    
-    if (interaction.isButton()) {
-        try {
-            if (interaction.customId.startsWith('iniciar_') || 
-                interaction.customId.startsWith('ver_') || 
-                interaction.customId.startsWith('edit_') ||
-                interaction.customId.startsWith('confirmar_') ||
-                interaction.customId.startsWith('cancelar_')) 
-            {
-                await ligaButtonHandler(client, interaction);
-            }
-            else if (interaction.customId.startsWith('carreira_status_')) 
-            {
-                await carreiraButtonHandler(interaction);
-            }
-            else if (interaction.customId === 'ticket_abrir_denuncia') 
-            {
-                await ticketOpenHandler(interaction);
-            }
-            else if (interaction.customId === 'ticket_fechar') 
-            {
-                await ticketCloseHandler(interaction);
-            }
-        } catch (err) {
-            console.error(`Erro no handler de botão (${interaction.customId}):`, err);
-            try {
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '❌ Ocorreu um erro ao usar este botão.', ephemeral: true });
-                } else {
-                    await interaction.followUp({ content: '❌ Ocorreu um erro ao usar este botão.', ephemeral: true });
-                }
-            } catch (catchErr) {
-                console.error("[ERRO NO CATCH] Não foi possível responder ao botão que falhou:", catchErr.message);
-            }
-        }
-    }
-});
+}
 
 // --- Login do Bot ---
 client.login(process.env.TOKEN);
