@@ -1,19 +1,17 @@
-/* commands/ticket/ticketCloseHandler.js (V2 - COM EMBED BONITO) */
+/* ========================================================================
+   ARQUIVO: commands/ticket/ticketCloseHandler.js (CORRIGIDO)
+   
+   - [CORREÇÃO] Agora lê o 'log_config.json' da pasta 'adm'
+     para encontrar o canal de logs, em vez do 'server_data.json'.
+   ======================================================================== */
 
-// [MUDANÇA] Adicionamos EmbedBuilder e Colors
 const { AttachmentBuilder, EmbedBuilder, Colors } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
-const fs = require('fs');
 const path = require('path');
+const { safeReadJson } = require('../liga/utils/helpers.js'); // Usamos o helper de leitura
 
-// Carrega os dados do servidor (para o canal de logs)
-const serverDataPath = path.join(__dirname, '../adm/server_data.json');
-let serverData = {};
-try {
-    serverData = JSON.parse(fs.readFileSync(serverDataPath, 'utf8'));
-} catch (err) {
-    console.error("Erro ao carregar server_data.json no ticketCloseHandler:", err);
-}
+// [CAMINHO CORRIGIDO] Aponta para o arquivo de configuração de logs
+const logConfigPath = path.join(__dirname, '../adm/log_config.json');
 
 async function handleTicketClose(interaction) {
     const channel = interaction.channel;
@@ -21,7 +19,6 @@ async function handleTicketClose(interaction) {
         return interaction.reply({ content: '❌ Este não parece ser um canal de ticket válido.', ephemeral: true });
     }
 
-    // Tenta extrair o ID do usuário do tópico do canal
     const topic = interaction.channel.topic;
     const userIdMatch = topic ? topic.match(/ID: (\d+)/) : null;
     const userId = userIdMatch ? userIdMatch[1] : null;
@@ -32,7 +29,6 @@ async function handleTicketClose(interaction) {
 
     await interaction.reply({ content: `🔒 Fechando ticket...\nSalvando transcrição em HTML. O canal será deletado em 5 segundos.` });
 
-    // Renomeia o canal ANTES de salvar, para que o usuário veja a mudança
     try {
         await channel.setName(`🔒-fechado`);
     } catch (renameErr) {
@@ -41,7 +37,6 @@ async function handleTicketClose(interaction) {
 
     let attachment;
     try {
-        // Gera a transcrição
         attachment = await discordTranscripts.createTranscript(channel, {
             filename: `transcricao-${channel.name}.html`,
             saveImages: true,
@@ -52,14 +47,11 @@ async function handleTicketClose(interaction) {
         return interaction.editReply({ content: '❌ Ocorreu um erro ao salvar a transcrição. O canal não será deletado.' });
     }
 
-    // Tenta enviar o DM para o usuário
     if (userId) {
         try {
             const user = await interaction.client.users.fetch(userId);
-
-            // --- ✨ DM COM EMBED BONITO ---
             const embedDM = new EmbedBuilder()
-                .setColor(Colors.Blue) // Cor azul informativa
+                .setColor(Colors.Blue)
                 .setTitle('✅ Ticket Fechado')
                 .setDescription(`Olá! Seu ticket no servidor **${interaction.guild.name}** foi fechado.\n\nEstamos enviando a transcrição completa da conversa em anexo para sua referência.`)
                 .addFields(
@@ -73,10 +65,9 @@ async function handleTicketClose(interaction) {
                 .setTimestamp();
 
             await user.send({
-                embeds: [embedDM], // Usa 'embeds' em vez de 'content'
+                embeds: [embedDM],
                 files: [attachment]
             });
-            // --- FIM DA MUDANÇA ---
 
         } catch (dmError) {
             console.warn(`[AVISO] Não foi possível enviar o DM da transcrição para ${userId}.`);
@@ -84,8 +75,10 @@ async function handleTicketClose(interaction) {
         }
     }
 
-    // Envia a transcrição para o canal de logs (se configurado)
-    const logChannelId = serverData[interaction.guild.id]?.logChannelId;
+    // [LÓGICA CORRIGIDA] Envia a transcrição para o canal de logs correto
+    const logConfig = safeReadJson(logConfigPath); // Lê o log_config.json
+    const logChannelId = logConfig.logChannelId;   // Pega o ID de lá
+
     if (logChannelId && attachment) {
         try {
             const logChannel = await interaction.guild.channels.fetch(logChannelId);
@@ -100,7 +93,6 @@ async function handleTicketClose(interaction) {
         }
     }
 
-    // Deleta o canal
     setTimeout(() => {
         channel.delete().catch(err => {
             console.error("Não foi possível deletar o canal do ticket:", err);
@@ -108,5 +100,4 @@ async function handleTicketClose(interaction) {
     }, 5000);
 }
 
-// Exporta a função diretamente
 module.exports = handleTicketClose;
