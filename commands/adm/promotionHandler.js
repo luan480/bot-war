@@ -1,50 +1,49 @@
 /* ========================================================================
-   ARQUIVO: commands/adm/promotionHandler.js (VERSÃO FINAL CORRIGIDA)
+   ARQUIVO: commands/adm/promotionHandler.js (VERSÃO 100% AUTOMÁTICA)
    
+   - Este é o "Vigia de Prints".
+   - [NOVO] Lógica de "Sincronização Automática" de veteranos.
    - [MUDANÇA] Importa TUDO que precisamos do helper local './carreiraHelpers.js'.
    - [MUDANÇA] Importa 'carreiras.json' para saber as regras de promoção.
-   - [CORREÇÃO] Lê 'promocao_config.json' (em vez de server_data.json).
-   - [CORREÇÃO] Salva as vitórias em 'progressao.json' (em vez de pontuacao.json).
-   - [NOVO] CHAMA 'recalcularRank' DEPOIS de adicionar a vitória,
-     promovendo o usuário automaticamente.
+   - [CORREÇÃO] Lê a config (canalDePrints) direto do 'carreiras.json'.
+   - [CORREÇÃO] Salva as vitórias em 'progressao.json'.
+   - [NOVO] CHAMA 'recalcularRank' DEPOIS de adicionar a vitória.
    ======================================================================== */
 
 const { Events } = require('discord.js');
 const path = require('path');
-// [MUDANÇA] Importa TUDO que precisamos do helper local
 const { safeReadJson, safeWriteJson, recalcularRank } = require('./carreiraHelpers.js');
 
-// Caminhos para os arquivos JSON (agora todos corretos)
-const configPath = path.join(__dirname, 'promocao_config.json'); // O arquivo que vamos criar
+// Caminhos para os arquivos JSON
 const progressaoPath = path.join(__dirname, 'progressao.json');
-const carreirasPath = path.join(__dirname, 'carreiras.json'); // O seu arquivo de patentes
+const carreirasPath = path.join(__dirname, 'carreiras.json');
 
 
 const promotionVigia = (client) => {
     
     // Carrega as configurações UMA VEZ quando o bot liga
-    const config = safeReadJson(configPath);
-    const carreirasConfig = safeReadJson(carreirasPath); // Carrega as regras de patente
+    const carreirasConfig = safeReadJson(carreirasPath);
     
-    // Pega o ID do cargo Recruta do carreiras.json
+    // Pega as configs direto do carreiras.json
+    const canalDePrintsId = carreirasConfig.canalDePrints; 
     const cargoRecrutaId = carreirasConfig.cargoRecrutaId; 
 
-    if (!config.printsChannelId) {
-        console.warn("[AVISO DE PROMOÇÃO] O sistema de promoção está desativado. Use /promocao-configurar.");
+    if (!canalDePrintsId) {
+        console.warn("[AVISO DE PROMOÇÃO] O sistema de promoção está desativado. 'canalDePrints' não encontrado no carreiras.json.");
         return; 
     }
     if (!carreirasConfig || !carreirasConfig.faccoes || !cargoRecrutaId) {
-        console.warn("[AVISO DE PROMOÇÃO] O arquivo 'carreiras.json' não foi encontrado ou está mal formatado (falta 'faccoes' ou 'cargoRecrutaId').");
+        console.warn("[AVISO DE PROMOÇÃO] O arquivo 'carreiras.json' está mal formatado (falta 'faccoes' ou 'cargoRecrutaId').");
         return;
     }
 
-    console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${config.printsChannelId}`);
+    console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${canalDePrintsId}`);
 
     client.on(Events.MessageCreate, async message => {
         // Verifica se a mensagem é no canal configurado
-        if (message.channel.id !== config.printsChannelId) return;
+        if (message.channel.id !== canalDePrintsId) return;
         
-        // Ignora bots (IMPORTANTE: Ignora os prints do bot da LIGA)
+        // Ignora bots
         if (message.author.bot) return;
 
         // Verifica se tem anexo
@@ -54,12 +53,12 @@ const promotionVigia = (client) => {
         if (!member) return;
         
         // [LÓGICA DE FACÇÃO]
-        // Verifica se o membro tem um cargo de facção.
         let faccaoId = null;
+        let faccao = null;
         for (const id of Object.keys(carreirasConfig.faccoes)) {
-            // Verifica se o ID do cargo da facção (a chave) está nos cargos do membro
             if (member.roles.cache.has(id)) {
                 faccaoId = id;
+                faccao = carreirasConfig.faccoes[id];
                 break;
             }
         }
@@ -73,44 +72,63 @@ const promotionVigia = (client) => {
             const progressao = safeReadJson(progressaoPath);
             const userId = member.id;
             
-            // Se for o primeiro print do usuário
+            // --- A LÓGICA DE SINCRONIZAÇÃO AUTOMÁTICA QUE VOCÊ PEDIU ---
+            // Se o usuário (veterano ou recruta) NÃO ESTÁ no progressao.json...
             if (!progressao[userId]) {
-                // E ele ainda não tem uma facção (é só recruta)
+                
+                // 1. Precisamos da facção dele.
                 if (!faccaoId) {
                     await message.reply({ content: `${member}, não consegui identificar sua facção. Você precisa pegar o cargo da sua facção (Exército, Marinha, etc.) antes de registrar sua primeira vitória.`});
                     return;
                 }
                 
-                // Primeiro registro no 'progressao.json'
+                // 2. Procuramos a patente mais alta que ele JÁ TEM
+                let cargoMaisAlto = null;
+                let custoDoCargo = 0;
+                for (let i = faccao.caminho.length - 1; i >= 0; i--) {
+                    const rank = faccao.caminho[i];
+                    if (member.roles.cache.has(rank.id)) {
+                        cargoMaisAlto = rank;
+                        custoDoCargo = rank.custo; // Achamos o "custo" do cargo dele
+                        break; 
+                    }
+                }
+
+                // 3. Criamos o registro dele
                 progressao[userId] = {
                     factionId: faccaoId, 
-                    currentRankId: null, // Começa como recruta
-                    totalWins: 0
+                    currentRankId: cargoMaisAlto ? cargoMaisAlto.id : null,
+                    totalWins: custoDoCargo // Ele começa com as vitórias do cargo que ele já tinha
                 };
+                
+                console.log(`[Promoção] Usuário VETERANO ${member.user.tag} sincronizado. Começando com ${custoDoCargo} vitórias.`);
             }
             
-            // Pega os dados do usuário
-            const userProgress = progressao[userId];
-            const faccao = carreirasConfig.faccoes[userProgress.factionId];
+            // --- FIM DA LÓGICA DE SINCRONIZAÇÃO ---
 
-            if (!faccao) {
+            // Pega os dados do usuário (seja ele novo ou antigo)
+            const userProgress = progressao[userId];
+            // (Se ele era recruta e não tinha facção, ele foi barrado no 'if (!faccaoId)' acima)
+            const faccaoDoUsuario = carreirasConfig.faccoes[userProgress.factionId];
+
+            if (!faccaoDoUsuario) {
                  console.error(`[Promoção] Usuário ${member.user.tag} tem uma facção ID (${userProgress.factionId}) que não existe no carreiras.json.`);
                  return;
             }
 
             // ---- O CONTADOR ----
-            await message.react('🔰'); // Reage primeiro para o usuário ver
-            userProgress.totalWins = (userProgress.totalWins || 0) + 1;
+            await message.react('🔰'); // Reage para confirmar
+            userProgress.totalWins = userProgress.totalWins + 1; // Adiciona a nova vitória
             
             // ---- A "PONTE" (O AGENTE) ----
-            // Agora, chama o Agente de Promoção para verificar
-            // se essa +1 vitória resultou em uma promoção.
+            // Chama o Agente de Promoção para verificar se essa +1 vitória
+            // resultou em uma promoção.
             
-            await recalcularRank(member, faccao, userProgress, cargoRecrutaId);
+            await recalcularRank(member, faccaoDoUsuario, userProgress, cargoRecrutaId);
             
             // ---------------------------------------------
             
-            // Salva o 'progressao.json' (agora com +1 vitória E o cargoId atualizado)
+            // Salva o 'progressao.json'
             safeWriteJson(progressaoPath, progressao);
             
             console.log(`[Promoção] +1 vitória para ${member.user.tag}. Total: ${userProgress.totalWins}. Cargo atual: ${userProgress.currentRankId}`);
