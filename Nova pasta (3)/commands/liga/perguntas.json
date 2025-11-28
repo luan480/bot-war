@@ -1,0 +1,23 @@
+[
+  {
+    "pergunta": "Quem foi o GRANDE VENCEDOR da partida? (Digite o nome do jogador)",
+    "pontos": 30,
+    "multi": false
+  },
+  {
+    "pergunta": "Qual jogador conquistou MAIS TERRITÓRIOS? (Digite o nome do jogador)",
+    "pontos": 10,
+    "multi": false
+  },
+  {
+    "type": "combate",
+    "pergunta": "Registre os COMBATES da partida. (Formato: ASSASSINO matou VITIMA1, VITIMA2)",
+    "pontosGanhos": 10,
+    "pontosPerdidos": -20
+  },
+  {
+    "multi": true,
+    "pergunta": "Quais jogadores cometeram ANTI-JOGO (quitaram, kamikaze, etc)? (Se não houver, deixe em branco)",
+    "pontos": -20
+  }
+]

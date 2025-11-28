@@ -1,0 +1,137 @@
+/* ========================================================================
+   ARQUIVO: commands/economy/contrabando.js
+   DESCRIÇÃO: Compre barato, espere o transporte, venda caro (ou seja preso).
+   ======================================================================== */
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const path = require('path');
+const { safeReadJson, safeWriteJson } = require('../liga/utils/helpers.js');
+
+const economyPath = path.join(__dirname, 'economy.json');
+const contrabandoPath = path.join(__dirname, 'contrabando.json'); // Novo arquivo
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('contrabando')
+        .setDescription('🕵️ Mercado Negro: Compre mercadorias ilícitas para revenda.')
+        .addSubcommand(sub => 
+            sub.setName('comprar')
+                .setDescription('Investe em uma carga ilegal (Custo: $2000).')
+        )
+        .addSubcommand(sub => 
+            sub.setName('vender')
+                .setDescription('Tenta vender sua carga para o receptador.')
+        )
+        .addSubcommand(sub => 
+            sub.setName('status')
+                .setDescription('Verifica onde está sua mercadoria.')
+        ),
+
+    async execute(interaction) {
+        const sub = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+        const CUSTO_CARGA = 2000;
+        const TEMPO_TRANSPORTE = 30 * 60 * 1000; // 30 minutos
+
+        let contrabandoDb = safeReadJson(contrabandoPath);
+        
+        // === COMPRAR ===
+        if (sub === 'comprar') {
+            if (contrabandoDb[userId]) return interaction.reply({ content: '❌ Você já tem uma carga em trânsito! Venda-a primeiro.', ephemeral: true });
+
+            const economy = safeReadJson(economyPath);
+            if ((economy[userId] || 0) < CUSTO_CARGA) return interaction.reply({ content: `❌ Você precisa de $${CUSTO_CARGA} para comprar a mercadoria.`, ephemeral: true });
+
+            // Cobra
+            economy[userId] -= CUSTO_CARGA;
+            safeWriteJson(economyPath, economy);
+
+            // Registra
+            contrabandoDb[userId] = {
+                inicio: Date.now(),
+                prontoEm: Date.now() + TEMPO_TRANSPORTE
+            };
+            safeWriteJson(contrabandoPath, contrabandoDb);
+
+            return interaction.reply({ 
+                content: `📦 **Carga Adquirida!**\nOs contrabandistas estão transportando sua mercadoria.\n⏳ Ela estará pronta para venda em **30 minutos**.\n\n*Use /contrabando status para acompanhar.*` 
+            });
+        }
+
+        // === STATUS ===
+        if (sub === 'status') {
+            const dados = contrabandoDb[userId];
+            if (!dados) return interaction.reply({ content: '🤷 Você não tem nenhuma encomenda ativa.', ephemeral: true });
+
+            const agora = Date.now();
+            const falta = dados.prontoEm - agora;
+
+            if (falta > 0) {
+                const minutos = Math.ceil(falta / 60000);
+                return interaction.reply({ content: `🚚 **Em trânsito...**\nSua carga chega ao ponto de venda em **${minutos} minutos**.` });
+            } else {
+                return interaction.reply({ content: `✅ **A Carga chegou!**\nUse \`/contrabando vender\` agora mesmo para lucrar!` });
+            }
+        }
+
+        // === VENDER ===
+        if (sub === 'vender') {
+            const dados = contrabandoDb[userId];
+            if (!dados) return interaction.reply({ content: '❌ Você não tem nada para vender.', ephemeral: true });
+
+            const agora = Date.now();
+            
+            // Se tentar vender antes da hora (Queima de arquivo)
+            if (agora < dados.prontoEm) {
+                return interaction.reply({ content: '❌ **Calma!** A carga ainda não chegou. Se você vender agora, vai perder o investimento.', ephemeral: true });
+            }
+
+            // Remove do DB de contrabando
+            delete contrabandoDb[userId];
+            safeWriteJson(contrabandoPath, contrabandoDb);
+
+            // Risco de Polícia (30% de chance de ser preso)
+            const pegouPolicia = Math.random() < 0.30;
+
+            if (pegouPolicia) {
+                // PRESO! Perde a carga e paga multa.
+                const economy = safeReadJson(economyPath);
+                const multa = 1000;
+                economy[userId] = (economy[userId] || 0) - multa;
+                safeWriteJson(economyPath, economy);
+
+                const embedPreso = new EmbedBuilder()
+                    .setTitle('🚨 TE PEGARAM!')
+                    .setDescription('A Polícia Federal interceptou a entrega.')
+                    .setColor('#e74c3c')
+                    .addFields(
+                        { name: '📦 Carga', value: 'Apreendida (Perdeu $2000)' },
+                        { name: '💸 Multa', value: `-$${multa} WarCoins` }
+                    )
+                    .setThumbnail('https://cdn-icons-png.flaticon.com/512/4364/4364386.png');
+
+                return interaction.reply({ embeds: [embedPreso] });
+            } else {
+                // SUCESSO! Lucro de 1.5x a 2.5x
+                const multiplicador = (Math.random() * 1.0) + 1.5; // entre 1.5 e 2.5
+                const valorVenda = Math.floor(CUSTO_CARGA * multiplicador);
+                const lucro = valorVenda - CUSTO_CARGA;
+
+                const economy = safeReadJson(economyPath);
+                economy[userId] = (economy[userId] || 0) + valorVenda;
+                safeWriteJson(economyPath, economy);
+
+                const embedSucesso = new EmbedBuilder()
+                    .setTitle('💰 Negócio Fechado!')
+                    .setDescription('Você vendeu a mercadoria no mercado negro.')
+                    .setColor('#2ecc71')
+                    .addFields(
+                        { name: '💵 Valor da Venda', value: `$${valorVenda}` },
+                        { name: '📈 Lucro Líquido', value: `+$${lucro} WarCoins` }
+                    )
+                    .setThumbnail('https://cdn-icons-png.flaticon.com/512/2422/2422120.png');
+
+                return interaction.reply({ embeds: [embedSucesso] });
+            }
+        }
+    }
+};

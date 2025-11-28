@@ -1,0 +1,122 @@
+[
+  {
+    "id": "vip_bronze",
+    "nome": "VIP Bronze 🥉",
+    "preco": 5000,
+    "descricao": "Início da glória. Acesso a salas básicas e cor Bronze.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "mercenario",
+    "nome": "Mercenário 💰",
+    "preco": 8000,
+    "descricao": "Você luta por dinheiro, não por bandeiras.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "vip_prata",
+    "nome": "VIP Prata 🥈",
+    "preco": 15000,
+    "descricao": "Destaque no chat e prioridade no suporte.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "medico",
+    "nome": "Médico de Combate 💉",
+    "preco": 20000,
+    "descricao": "Respeitado por salvar vidas no front.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "vip_ouro",
+    "nome": "VIP Ouro 🥇",
+    "preco": 30000,
+    "descricao": "Status máximo, permissão de imagens e cor Ouro.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "sniper",
+    "nome": "Sniper de Elite 🎯",
+    "preco": 40000,
+    "descricao": "Um tiro, uma baixa. Cargo de precisão.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "tanque_role",
+    "nome": "Comandante de Tanque 🚜",
+    "preco": 50000,
+    "descricao": "Blindagem pesada. Abre caminho na força bruta.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "piloto",
+    "nome": "Ás dos Céus ✈️",
+    "preco": 65000,
+    "descricao": "Domine os ares com este título de piloto de caça.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "espiao",
+    "nome": "Agente Secreto 🕵️",
+    "preco": 80000,
+    "descricao": "Ninguém sabe quem você é, mas todos temem.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "barao",
+    "nome": "Barão da Pólvora 🧨",
+    "preco": 100000,
+    "descricao": "Você financia a guerra. Cargo de ostentação.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "nuclear",
+    "nome": "Ameaça Nuclear ☢️",
+    "preco": 250000,
+    "descricao": "PERIGO! Você é uma arma de destruição em massa.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "veterano",
+    "nome": "Lenda Viva 👴",
+    "preco": 500000,
+    "descricao": "Sobreviveu a todas as guerras. Respeito máximo.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "imortal",
+    "nome": "O Imortal 🌌",
+    "preco": 1000000,
+    "descricao": "O cargo mais caro do servidor. Só para deuses da economia.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "paz",
+    "nome": "Pomba da Paz 🕊️",
+    "preco": 500,
+    "descricao": "Para quem desistiu da guerra e só quer conversar.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  },
+  {
+    "id": "bobo",
+    "nome": "Bucha de Canhão 🤡",
+    "preco": 100,
+    "descricao": "O primeiro a morrer. Cargo de zoeira barato.",
+    "roleId": "COLOCA_O_ID_AQUI",
+    "tipo": "cargo"
+  }
+]
